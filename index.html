@@ -106,7 +106,7 @@ let samEncoder = null;
 let samDecoder = null;
 let samReady = false;
 let imageEmbeddings = null;
-let originalPixels = null; // full RGBA of original image
+let basePixels = null; // current canvas pixels that SAM refines
 let originalWidth = 0;
 let originalHeight = 0;
 const DIM = 1024;
@@ -142,7 +142,7 @@ function handleFile(file) {
       canvas.height = originalImage.height;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(originalImage, 0, 0);
-      originalPixels = ctx.getImageData(0, 0, originalImage.width, originalImage.height);
+      basePixels = ctx.getImageData(0, 0, originalImage.width, originalImage.height);
       resultCanvas = canvas;
       status('Image loaded. Click "Remove Background" to start.', 'info');
     };
@@ -166,7 +166,9 @@ $('#btn-remove-bg').addEventListener('click', async () => {
       const canvas = $('#result-canvas');
       canvas.width = img.width;
       canvas.height = img.height;
-      canvas.getContext('2d').drawImage(img, 0, 0);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      basePixels = ctx.getImageData(0, 0, img.width, img.height);
       resultCanvas = canvas;
       $('#btn-download').disabled = false;
       status('Background removed! Use "Refine" for touch-up.', 'success');
@@ -212,6 +214,12 @@ $('#btn-refine').addEventListener('click', () => {
   $('#refine-panel').classList.remove('hidden');
   $('#mode-indicator').classList.add('active');
   updateModeIndicator();
+  // Snapshot current canvas as base for SAM refinement
+  const canvas = $('#result-canvas');
+  const ctx = canvas.getContext('2d');
+  basePixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  originalWidth = canvas.width;
+  originalHeight = canvas.height;
   loadSAM();
 });
 
@@ -289,15 +297,12 @@ async function encodeImage() {
   const resizedWidth = DIM;
   const resizedHeight = Math.round(DIM * originalHeight / originalWidth);
   
-  // Create resized canvas from original image
+  // Create resized canvas from current canvas (the refined image)
   const resizedCanvas = document.createElement('canvas');
   resizedCanvas.width = resizedWidth;
   resizedCanvas.height = resizedHeight;
   const rctx = resizedCanvas.getContext('2d');
-  const origImg = new Image();
-  origImg.src = $('#original-img').src;
-  await new Promise(r => { origImg.onload = r; });
-  rctx.drawImage(origImg, 0, 0, resizedWidth, resizedHeight);
+  rctx.drawImage(canvas, 0, 0, resizedWidth, resizedHeight);
   const resizedData = rctx.getImageData(0, 0, resizedWidth, resizedHeight);
   
   // Preprocess: normalize to [0,1] float, keep HWC layout (model expects [H, W, 3])
@@ -316,11 +321,10 @@ async function encodeImage() {
 // ---- Re-run SAM ----
 $('#btn-rerun').addEventListener('click', async () => {
   if (!samReady || points.length === 0) { status('Add points first and wait for model to load', 'error'); return; }
-  if (!imageEmbeddings) { await encodeImage(); }
-  
   const btn = $('#btn-rerun');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Running...';
+  if (!imageEmbeddings) { await encodeImage(); }
   try {
     const ort = window.ort;
     const canvas = $('#result-canvas');
@@ -362,7 +366,7 @@ $('#btn-rerun').addEventListener('click', async () => {
     const maskW = maskDims[3];
     
     const ctx = canvas.getContext('2d');
-    const imageData = new ImageData(new Uint8ClampedArray(originalPixels.data), originalWidth, originalHeight);
+    const imageData = new ImageData(new Uint8ClampedArray(basePixels.data), originalWidth, originalHeight);
     
     // Scale mask back to original size and apply
     for (let y = 0; y < originalHeight; y++) {
@@ -374,11 +378,15 @@ $('#btn-rerun').addEventListener('click', async () => {
         if (maskVal < 0.5) {
           imageData.data[idx + 3] = 0; // transparent
         } else {
-          imageData.data[idx + 3] = originalPixels.data[idx + 3]; // keep original alpha
+          imageData.data[idx + 3] = basePixels.data[idx + 3]; // keep base alpha
         }
       }
     }
     ctx.putImageData(imageData, 0, 0);
+    
+    // Update basePixels to the new refined result for next Re-run
+    basePixels = ctx.getImageData(0, 0, originalWidth, originalHeight);
+    imageEmbeddings = null; // force re-encode on next Re-run since canvas changed
     
     status(`Mask generated in ${elapsed}s. Add more points or download.`, 'success');
   } catch (err) {
