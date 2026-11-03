@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Browser BG Remover</title>
+<title>Browser BG Remover</title><meta name="test-marker" content="rmbg-v2-2026">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
@@ -107,6 +107,7 @@ let samEncoder = null;
 let samDecoder = null;
 let samReady = false;
 let imageEmbeddings = null;
+let originalPixels = null; // original uploaded image (for restoring color/alpha)
 let basePixels = null; // current canvas pixels that SAM refines
 let originalWidth = 0;
 let originalHeight = 0;
@@ -143,6 +144,7 @@ function handleFile(file) {
       canvas.height = originalImage.height;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(originalImage, 0, 0);
+      originalPixels = ctx.getImageData(0, 0, originalImage.width, originalImage.height);
       basePixels = ctx.getImageData(0, 0, originalImage.width, originalImage.height);
       resultCanvas = canvas;
       status('Image loaded. Click "Remove Background" to start.', 'info');
@@ -200,6 +202,7 @@ $('#btn-download').addEventListener('click', () => {
 $('#btn-reset').addEventListener('click', () => {
   originalImage = null;
   imageEmbeddings = null;
+  originalPixels = null;
   basePixels = null;
   points = [];
   refineMode = false;
@@ -310,11 +313,10 @@ async function encodeImage() {
   rctx.drawImage(canvas, 0, 0, resizedWidth, resizedHeight);
   const resizedData = rctx.getImageData(0, 0, resizedWidth, resizedHeight);
   
-  // Preprocess: normalize to [0,1] float, keep HWC layout (model expects [H, W, 3])
+  // Preprocess: keep raw [0, 255] pixel values (model expects unnormalized input)
   const tfTensor = tf.tensor(resizedData.data, [resizedHeight, resizedWidth, 4], 'float32');
   const rgb = tfTensor.slice([0, 0, 0], [resizedHeight, resizedWidth, 3]);
-  const normalized = rgb.div(255.0);
-  const inputTensor = new ort.Tensor('float32', normalized.dataSync(), [resizedHeight, resizedWidth, 3]);
+  const inputTensor = new ort.Tensor('float32', rgb.dataSync(), [resizedHeight, resizedWidth, 3]);
   
   const start = Date.now();
   const results = await samEncoder.run({ input_image: inputTensor });
@@ -357,7 +359,7 @@ $('#btn-rerun').addEventListener('click', async () => {
     
     const maskInput = new ort.Tensor('float32', new Float32Array(256 * 256), [1, 1, 256, 256]);
     const hasMask = new ort.Tensor('float32', new Float32Array([0]), [1]);
-    const origSize = new ort.Tensor('float32', new Float32Array([originalHeight, originalWidth]), [2]);
+    const origSize = new ort.Tensor('float32', new Float32Array([resizedHeight, resizedWidth]), [2]);
     
     const feeds = {
       image_embeddings: imageEmbeddings,
@@ -372,27 +374,32 @@ $('#btn-rerun').addEventListener('click', async () => {
     const results = await samDecoder.run(feeds);
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
     
-    // Apply mask to canvas — start from original image pixels
+    // Apply mask to canvas — mask is in resized space, scale back to original
     const masks = results.masks;
     const maskData = masks.data;
     const maskDims = masks.dims;
-    const maskH = maskDims[2];
-    const maskW = maskDims[3];
+    const maskH = maskDims[2]; // resizedHeight
+    const maskW = maskDims[3]; // resizedWidth
     
     const ctx = canvas.getContext('2d');
     const imageData = new ImageData(new Uint8ClampedArray(basePixels.data), originalWidth, originalHeight);
     
-    // Scale mask back to original size and apply
+    // Scale mask from resized to original dimensions and apply
     for (let y = 0; y < originalHeight; y++) {
       for (let x = 0; x < originalWidth; x++) {
+        // Map original pixel to resized mask coordinate
         const mx = Math.min(maskW - 1, Math.round(x * maskW / originalWidth));
         const my = Math.min(maskH - 1, Math.round(y * maskH / originalHeight));
         const maskVal = maskData[my * maskW + mx];
         const idx = (y * originalWidth + x) * 4;
-        if (maskVal < 0.5) {
+        if (maskVal < 0) {  // logits: < 0 means background
           imageData.data[idx + 3] = 0; // transparent
         } else {
-          imageData.data[idx + 3] = basePixels.data[idx + 3]; // keep base alpha
+          // Restore from original image (full opacity)
+          imageData.data[idx] = originalPixels.data[idx];
+          imageData.data[idx + 1] = originalPixels.data[idx + 1];
+          imageData.data[idx + 2] = originalPixels.data[idx + 2];
+          imageData.data[idx + 3] = 255;
         }
       }
     }
