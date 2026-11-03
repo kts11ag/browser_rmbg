@@ -112,6 +112,8 @@ let basePixels = null; // current canvas pixels that SAM refines
 let originalWidth = 0;
 let originalHeight = 0;
 const DIM = 1024;
+let resizedWidth = 0;
+let resizedHeight = 0;
 
 const $ = (sel) => document.querySelector(sel);
 const status = (msg, type = 'info') => {
@@ -146,6 +148,10 @@ function handleFile(file) {
       ctx.drawImage(originalImage, 0, 0);
       originalPixels = ctx.getImageData(0, 0, originalImage.width, originalImage.height);
       basePixels = ctx.getImageData(0, 0, originalImage.width, originalImage.height);
+      originalWidth = originalImage.width;
+      originalHeight = originalImage.height;
+      resizedWidth = DIM;
+      resizedHeight = Math.round(DIM * originalHeight / originalWidth);
       resultCanvas = canvas;
       status('Image loaded. Click "Remove Background" to start.', 'info');
     };
@@ -227,6 +233,8 @@ $('#btn-refine').addEventListener('click', () => {
   basePixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
   originalWidth = canvas.width;
   originalHeight = canvas.height;
+  resizedWidth = DIM;
+  resizedHeight = Math.round(DIM * originalHeight / originalWidth);
   loadSAM();
 });
 
@@ -302,8 +310,8 @@ async function encodeImage() {
   const ort = window.ort;
   
   // Resize to 1024 width (maintain aspect ratio)
-  const resizedWidth = DIM;
-  const resizedHeight = Math.round(DIM * originalHeight / originalWidth);
+  resizedWidth = DIM;
+  resizedHeight = Math.round(DIM * originalHeight / originalWidth);
   
   // Create resized canvas from current canvas (the refined image)
   const resizedCanvas = document.createElement('canvas');
