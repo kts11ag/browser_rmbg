@@ -106,7 +106,7 @@ let samEncoder = null;
 let samDecoder = null;
 let samReady = false;
 let imageEmbeddings = null;
-let originalImageData = null;
+let originalPixels = null; // full RGBA of original image
 let originalWidth = 0;
 let originalHeight = 0;
 const DIM = 1024;
@@ -140,7 +140,9 @@ function handleFile(file) {
       const canvas = $('#result-canvas');
       canvas.width = originalImage.width;
       canvas.height = originalImage.height;
-      canvas.getContext('2d').drawImage(originalImage, 0, 0);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(originalImage, 0, 0);
+      originalPixels = ctx.getImageData(0, 0, originalImage.width, originalImage.height);
       resultCanvas = canvas;
       status('Image loaded. Click "Remove Background" to start.', 'info');
     };
@@ -195,7 +197,7 @@ $('#btn-download').addEventListener('click', () => {
 $('#btn-reset').addEventListener('click', () => {
   originalImage = null;
   imageEmbeddings = null;
-  originalImageData = null;
+  originalPixels = null;
   $('#preview-area').classList.add('hidden');
   $('#main-controls').classList.add('hidden');
   $('#refine-panel').classList.add('hidden');
@@ -279,30 +281,30 @@ async function encodeImage() {
   const canvas = $('#result-canvas');
   originalWidth = canvas.width;
   originalHeight = canvas.height;
-  const ctx = canvas.getContext('2d');
-  originalImageData = ctx.getImageData(0, 0, originalWidth, originalHeight);
   
   status('Encoding image with MobileSAM...', 'info');
   const ort = window.ort;
   
-  // Resize to 1024x684 (or appropriate aspect ratio)
+  // Resize to 1024 width (maintain aspect ratio)
   const resizedWidth = DIM;
   const resizedHeight = Math.round(DIM * originalHeight / originalWidth);
   
-  // Create resized tensor
+  // Create resized canvas from original image
   const resizedCanvas = document.createElement('canvas');
   resizedCanvas.width = resizedWidth;
   resizedCanvas.height = resizedHeight;
   const rctx = resizedCanvas.getContext('2d');
-  rctx.drawImage(canvas, 0, 0, resizedWidth, resizedHeight);
+  const origImg = new Image();
+  origImg.src = $('#original-img').src;
+  await new Promise(r => { origImg.onload = r; });
+  rctx.drawImage(origImg, 0, 0, resizedWidth, resizedHeight);
   const resizedData = rctx.getImageData(0, 0, resizedWidth, resizedHeight);
   
-  // Preprocess: normalize and convert to CHW tensor
-  const tfTensor = tf.tensor(resizedData.data, [resizedHeight, resizedWidth, 4]);
+  // Preprocess: normalize to [0,1] float, keep HWC layout (model expects [H, W, 3])
+  const tfTensor = tf.tensor(resizedData.data, [resizedHeight, resizedWidth, 4], 'float32');
   const rgb = tfTensor.slice([0, 0, 0], [resizedHeight, resizedWidth, 3]);
   const normalized = rgb.div(255.0);
-  const transposed = normalized.transpose([2, 0, 1]); // CHW
-  const inputTensor = new ort.Tensor('float32', transposed.dataSync(), [1, 3, resizedHeight, resizedWidth]);
+  const inputTensor = new ort.Tensor('float32', normalized.dataSync(), [resizedHeight, resizedWidth, 3]);
   
   const start = Date.now();
   const results = await samEncoder.run({ input_image: inputTensor });
@@ -352,7 +354,7 @@ $('#btn-rerun').addEventListener('click', async () => {
     const results = await samDecoder.run(feeds);
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
     
-    // Apply mask to canvas
+    // Apply mask to canvas — start from original image pixels
     const masks = results.masks;
     const maskData = masks.data;
     const maskDims = masks.dims;
@@ -360,17 +362,19 @@ $('#btn-rerun').addEventListener('click', async () => {
     const maskW = maskDims[3];
     
     const ctx = canvas.getContext('2d');
-    const imageData = ctx.getImageData(0, 0, originalWidth, originalHeight);
+    const imageData = new ImageData(new Uint8ClampedArray(originalPixels.data), originalWidth, originalHeight);
     
     // Scale mask back to original size and apply
     for (let y = 0; y < originalHeight; y++) {
       for (let x = 0; x < originalWidth; x++) {
-        const mx = Math.round(x * maskW / originalWidth);
-        const my = Math.round(y * maskH / originalHeight);
+        const mx = Math.min(maskW - 1, Math.round(x * maskW / originalWidth));
+        const my = Math.min(maskH - 1, Math.round(y * maskH / originalHeight));
         const maskVal = maskData[my * maskW + mx];
         const idx = (y * originalWidth + x) * 4;
         if (maskVal < 0.5) {
           imageData.data[idx + 3] = 0; // transparent
+        } else {
+          imageData.data[idx + 3] = originalPixels.data[idx + 3]; // keep original alpha
         }
       }
     }
