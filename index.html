@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Browser BG Remover</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
+  .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+  h1 { text-align: center; margin-bottom: 20px; font-size: 1.8rem; }
+  .upload-zone { border: 2px dashed #444; border-radius: 12px; padding: 40px; text-align: center; cursor: pointer; transition: border-color 0.2s; margin-bottom: 20px; }
+  .upload-zone:hover, .upload-zone.dragover { border-color: #6366f1; background: rgba(99,102,241,0.05); }
+  .upload-zone input { display: none; }
+  .preview-area { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
+  .preview-box { flex: 1; min-width: 280px; max-width: 400px; }
+  .preview-box h3 { margin-bottom: 8px; font-size: 1rem; color: #aaa; }
+  .preview-box img, .preview-box canvas { width: 100%; border-radius: 8px; background: repeating-conic-gradient(#333 0% 25%, #444 0% 50%) 50% / 20px 20px; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
+  button { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: transform 0.1s, opacity 0.2s; }
+  button:hover { transform: scale(1.05); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-primary { background: #6366f1; color: #fff; }
+  .btn-success { background: #22c55e; color: #fff; }
+  .btn-danger { background: #ef4444; color: #fff; }
+  .btn-secondary { background: #555; color: #fff; }
+  .status { text-align: center; padding: 10px; margin-bottom: 10px; border-radius: 8px; }
+  .status.info { background: rgba(99,102,241,0.2); color: #a5b4fc; }
+  .status.success { background: rgba(34,197,94,0.2); color: #86efac; }
+  .status.error { background: rgba(239,68,68,0.2); color: #fca5a5; }
+  .hidden { display: none; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .refine-controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+  .point { position: absolute; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; transform: translate(-50%, -50%); pointer-events: none; }
+  .point.keep { background: #22c55e; }
+  .point.remove { background: #ef4444; }
+  .canvas-wrapper { position: relative; display: inline-block; }
+  .mode-indicator { text-align: center; padding: 6px; font-size: 0.85rem; color: #aaa; }
+  .mode-indicator.active { color: #f59e0b; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🖼️ Browser BG Remover</h1>
+  
+  <div id="status" class="status info">Drop an image or click to upload</div>
+  
+  <div class="upload-zone" id="upload-zone">
+    <input type="file" id="file-input" accept="image/*">
+    <p>📁 Click or drag & drop an image here</p>
+    <p style="font-size:0.8rem;color:#888;margin-top:8px;">Supports JPG, PNG, WebP • No install needed • Works offline after first load</p>
+  </div>
+  
+  <div class="preview-area hidden" id="preview-area">
+    <div class="preview-box">
+      <h3>Original</h3>
+      <img id="original-img" src="" alt="Original">
+    </div>
+    <div class="preview-box">
+      <h3>Result</h3>
+      <div class="canvas-wrapper">
+        <canvas id="result-canvas"></canvas>
+        <div id="points-layer" style="position:absolute;inset:0;pointer-events:none;"></div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="controls hidden" id="main-controls">
+    <button class="btn-primary" id="btn-remove-bg">🪄 Remove Background</button>
+    <button class="btn-secondary" id="btn-refine">✏️ Refine (Tap)</button>
+    <button class="btn-success" id="btn-download" disabled>⬇️ Download PNG</button>
+    <button class="btn-secondary" id="btn-reset">🔄 Reset</button>
+  </div>
+  
+  <div id="refine-panel" class="hidden" style="margin-bottom:20px;">
+    <div class="mode-indicator" id="mode-indicator">Click "Keep" or "Remove", then tap on the image</div>
+    <div class="refine-controls">
+      <button class="btn-success" id="btn-keep">+ Keep</button>
+      <button class="btn-danger" id="btn-remove">- Remove</button>
+      <button class="btn-secondary" id="btn-undo">Undo</button>
+      <button class="btn-primary" id="btn-rerun">Re-run SAM</button>
+      <button class="btn-secondary" id="btn-exit-refine">Exit</button>
+    </div>
+  </div>
+</div>
+
+<!-- TensorFlow.js for tensor operations -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+<!-- ONNX Runtime Web -->
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.min.js"></script>
+<!-- @imgly/background-removal -->
+<script>
+  try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 1, configurable: true }); } catch (e) {}
+</script>
+<script type="module">
+import { removeBackground } from 'https://esm.sh/@imgly/background-removal@1.4.5';
+
+// ---- State ----
+let originalImage = null;
+let resultCanvas = null;
+let refineMode = false;
+let currentLabel = 1;
+let points = [];
+let samEncoder = null;
+let samDecoder = null;
+let samReady = false;
+let imageEmbeddings = null;
+let originalImageData = null;
+let originalWidth = 0;
+let originalHeight = 0;
+const DIM = 1024;
+
+const $ = (sel) => document.querySelector(sel);
+const status = (msg, type = 'info') => {
+  const el = $('#status');
+  el.textContent = msg;
+  el.className = 'status ' + type;
+};
+
+// ---- Upload handling ----
+const uploadZone = $('#upload-zone');
+const fileInput = $('#file-input');
+
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', (e) => { e.preventDefault(); uploadZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+function handleFile(file) {
+  if (!file || !file.type.startsWith('image/')) { status('Please select an image file', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    originalImage = new Image();
+    originalImage.onload = () => {
+      $('#original-img').src = e.target.result;
+      $('#preview-area').classList.remove('hidden');
+      $('#main-controls').classList.remove('hidden');
+      const canvas = $('#result-canvas');
+      canvas.width = originalImage.width;
+      canvas.height = originalImage.height;
+      canvas.getContext('2d').drawImage(originalImage, 0, 0);
+      resultCanvas = canvas;
+      status('Image loaded. Click "Remove Background" to start.', 'info');
+    };
+    originalImage.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ---- Auto BG Removal ----
+$('#btn-remove-bg').addEventListener('click', async () => {
+  if (!originalImage) return;
+  const btn = $('#btn-remove-bg');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Removing...';
+  status('Removing background (first run downloads ~40MB model)...', 'info');
+  try {
+    const blob = await removeBackground($('#original-img').src, { debug: true, proxyToWorker: false });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = $('#result-canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      resultCanvas = canvas;
+      $('#btn-download').disabled = false;
+      status('Background removed! Use "Refine" for touch-up.', 'success');
+    };
+    img.src = url;
+  } catch (err) {
+    status('Error: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🪄 Remove Background';
+  }
+});
+
+// ---- Download ----
+$('#btn-download').addEventListener('click', () => {
+  const canvas = $('#result-canvas');
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bg-removed.png';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, 'image/png');
+});
+
+// ---- Reset ----
+$('#btn-reset').addEventListener('click', () => {
+  originalImage = null;
+  imageEmbeddings = null;
+  originalImageData = null;
+  $('#preview-area').classList.add('hidden');
+  $('#main-controls').classList.add('hidden');
+  $('#refine-panel').classList.add('hidden');
+  $('#original-img').src = '';
+  fileInput.value = '';
+  status('Drop an image or click to upload', 'info');
+});
+
+// ---- Refine Mode ----
+$('#btn-refine').addEventListener('click', () => {
+  refineMode = true;
+  $('#refine-panel').classList.remove('hidden');
+  $('#mode-indicator').classList.add('active');
+  updateModeIndicator();
+  loadSAM();
+});
+
+$('#btn-exit-refine').addEventListener('click', () => {
+  refineMode = false;
+  points = [];
+  renderPoints();
+  $('#refine-panel').classList.add('hidden');
+  $('#mode-indicator').classList.remove('active');
+});
+
+$('#btn-keep').addEventListener('click', () => { currentLabel = 1; updateModeIndicator(); });
+$('#btn-remove').addEventListener('click', () => { currentLabel = 0; updateModeIndicator(); });
+$('#btn-undo').addEventListener('click', () => { points.pop(); renderPoints(); });
+
+function updateModeIndicator() {
+  const el = $('#mode-indicator');
+  el.textContent = currentLabel === 1 ? '🟢 Keep mode — tap on areas to KEEP' : '🔴 Remove mode — tap on areas to REMOVE';
+}
+
+function renderPoints() {
+  const layer = $('#points-layer');
+  layer.innerHTML = points.map(p => {
+    return `<div class="point ${p.label === 1 ? 'keep' : 'remove'}" style="left:${p.displayX}px;top:${p.displayY}px;"></div>`;
+  }).join('');
+}
+
+$('#result-canvas').addEventListener('click', (e) => {
+  if (!refineMode) return;
+  const canvas = $('#result-canvas');
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const x = Math.round((e.clientX - rect.left) * scaleX);
+  const y = Math.round((e.clientY - rect.top) * scaleY);
+  points.push({ x, y, label: currentLabel, displayX: e.clientX - rect.left, displayY: e.clientY - rect.top });
+  renderPoints();
+});
+
+// ---- MobileSAM Loading ----
+async function loadSAM() {
+  if (samReady) return;
+  status('Loading MobileSAM model (~50MB)...', 'info');
+  try {
+    const ort = window.ort;
+    ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/';
+    ort.env.wasm.numThreads = 1;
+    
+samEncoder = await ort.InferenceSession.create(
+      'https://huggingface.co/Acly/MobileSAM/resolve/main/mobile_sam_image_encoder.onnx',
+      { executionProviders: ['wasm'] }
+    );
+    samDecoder = await ort.InferenceSession.create(
+      'https://huggingface.co/Acly/MobileSAM/resolve/main/sam_mask_decoder_single.onnx',
+      { executionProviders: ['wasm'] }
+    );
+    samReady = true;
+    status('MobileSAM ready! Tap points then click "Re-run SAM".', 'success');
+  } catch (err) {
+    status('Failed to load MobileSAM: ' + err.message, 'error');
+    console.error(err);
+  }
+}
+
+// ---- Encode Image ----
+async function encodeImage() {
+  const canvas = $('#result-canvas');
+  originalWidth = canvas.width;
+  originalHeight = canvas.height;
+  const ctx = canvas.getContext('2d');
+  originalImageData = ctx.getImageData(0, 0, originalWidth, originalHeight);
+  
+  status('Encoding image with MobileSAM...', 'info');
+  const ort = window.ort;
+  
+  // Resize to 1024x684 (or appropriate aspect ratio)
+  const resizedWidth = DIM;
+  const resizedHeight = Math.round(DIM * originalHeight / originalWidth);
+  
+  // Create resized tensor
+  const resizedCanvas = document.createElement('canvas');
+  resizedCanvas.width = resizedWidth;
+  resizedCanvas.height = resizedHeight;
+  const rctx = resizedCanvas.getContext('2d');
+  rctx.drawImage(canvas, 0, 0, resizedWidth, resizedHeight);
+  const resizedData = rctx.getImageData(0, 0, resizedWidth, resizedHeight);
+  
+  // Preprocess: normalize and convert to CHW tensor
+  const tfTensor = tf.tensor(resizedData.data, [resizedHeight, resizedWidth, 4]);
+  const rgb = tfTensor.slice([0, 0, 0], [resizedHeight, resizedWidth, 3]);
+  const normalized = rgb.div(255.0);
+  const transposed = normalized.transpose([2, 0, 1]); // CHW
+  const inputTensor = new ort.Tensor('float32', transposed.dataSync(), [1, 3, resizedHeight, resizedWidth]);
+  
+  const start = Date.now();
+  const results = await samEncoder.run({ input_image: inputTensor });
+  imageEmbeddings = results.image_embeddings;
+  const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+  status(`Image encoded in ${elapsed}s. Tap points then click "Re-run SAM".`, 'success');
+}
+
+// ---- Re-run SAM ----
+$('#btn-rerun').addEventListener('click', async () => {
+  if (!samReady || points.length === 0) { status('Add points first and wait for model to load', 'error'); return; }
+  if (!imageEmbeddings) { await encodeImage(); }
+  
+  const btn = $('#btn-rerun');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Running...';
+  try {
+    const ort = window.ort;
+    const canvas = $('#result-canvas');
+    
+    // Scale points to resized dimensions
+    const scaleX = DIM / originalWidth;
+    const scaleY = (DIM * originalHeight / originalWidth) / originalHeight;
+    
+    const pointCoords = new Float32Array(points.length * 2);
+    const pointLabels = new Float32Array(points.length);
+    points.forEach((p, i) => {
+      pointCoords[i * 2] = p.x * scaleX;
+      pointCoords[i * 2 + 1] = p.y * scaleY;
+      pointLabels[i] = p.label;
+    });
+    
+    const maskInput = new ort.Tensor('float32', new Float32Array(256 * 256), [1, 1, 256, 256]);
+    const hasMask = new ort.Tensor('float32', new Float32Array([0]), [1]);
+    const origSize = new ort.Tensor('float32', new Float32Array([originalHeight, originalWidth]), [2]);
+    
+    const feeds = {
+      image_embeddings: imageEmbeddings,
+      point_coords: new ort.Tensor('float32', pointCoords, [1, points.length, 2]),
+      point_labels: new ort.Tensor('float32', pointLabels, [1, points.length]),
+      mask_input: maskInput,
+      has_mask_input: hasMask,
+      orig_im_size: origSize
+    };
+    
+    const start = Date.now();
+    const results = await samDecoder.run(feeds);
+    const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+    
+    // Apply mask to canvas
+    const masks = results.masks;
+    const maskData = masks.data;
+    const maskDims = masks.dims;
+    const maskH = maskDims[2];
+    const maskW = maskDims[3];
+    
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.getImageData(0, 0, originalWidth, originalHeight);
+    
+    // Scale mask back to original size and apply
+    for (let y = 0; y < originalHeight; y++) {
+      for (let x = 0; x < originalWidth; x++) {
+        const mx = Math.round(x * maskW / originalWidth);
+        const my = Math.round(y * maskH / originalHeight);
+        const maskVal = maskData[my * maskW + mx];
+        const idx = (y * originalWidth + x) * 4;
+        if (maskVal < 0.5) {
+          imageData.data[idx + 3] = 0; // transparent
+        }
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+    
+    status(`Mask generated in ${elapsed}s. Add more points or download.`, 'success');
+  } catch (err) {
+    status('Error: ' + err.message, 'error');
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Re-run SAM';
+  }
+});
+
+// Auto-encode when entering refine mode
+const origBtnRefine = $('#btn-refine').onclick;
+$('#btn-refine').addEventListener('click', () => {
+  setTimeout(() => {
+    if (samReady && !imageEmbeddings) encodeImage();
+  }, 100);
+});
+</script>
+</body>
+</html>
