@@ -2,64 +2,56 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Browser BG Remover</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
-  .container { max-width: 900px; margin: 0 auto; padding: 20px; }
-  h1 { text-align: center; margin-bottom: 20px; font-size: 1.8rem; }
-  .upload-zone { border: 2px dashed #444; border-radius: 12px; padding: 40px; text-align: center; cursor: pointer; transition: border-color 0.2s; margin-bottom: 20px; }
-  .upload-zone:hover, .upload-zone.dragover { border-color: #6366f1; background: rgba(99,102,241,0.05); }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; overflow-x: hidden; }
+  .container { max-width: 100%; margin: 0 auto; padding: 12px; }
+  h1 { text-align: center; margin-bottom: 12px; font-size: 1.4rem; }
+  .status { text-align: center; padding: 10px; margin-bottom: 10px; border-radius: 8px; font-size: 0.9rem; }
+  .status.info { background: rgba(99,102,241,0.2); color: #a5b4fc; }
+  .status.success { background: rgba(34,197,94,0.2); color: #86efac; }
+  .status.error { background: rgba(239,68,68,0.2); color: #fca5a5; }
+  .upload-zone { border: 2px dashed #555; border-radius: 12px; padding: 24px 16px; text-align: center; cursor: pointer; margin-bottom: 12px; background: rgba(255,255,255,0.03); }
+  .upload-zone:active { border-color: #6366f1; background: rgba(99,102,241,0.1); }
   .upload-zone input { position: absolute; opacity: 0; width: 0; height: 0; }
-  .preview-area { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
-  .preview-box { flex: 1; min-width: 280px; max-width: 400px; }
-  .preview-box h3 { margin-bottom: 8px; font-size: 1rem; color: #aaa; }
-  .preview-box img, .preview-box canvas { width: 100%; border-radius: 8px; background: repeating-conic-gradient(#333 0% 25%, #444 0% 50%) 50% / 20px 20px; }
-  .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
-  button { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: transform 0.1s, opacity 0.2s; }
-  button:hover { transform: scale(1.05); }
-  button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .upload-zone p { margin: 4px 0; }
+  .upload-zone .hint { font-size: 0.75rem; color: #888; }
+  .preview-area { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+  .preview-box h3 { margin-bottom: 6px; font-size: 0.9rem; color: #aaa; }
+  .preview-box canvas { width: 100%; border-radius: 8px; background: repeating-conic-gradient(#333 0% 25%, #444 0% 50%) 50% / 16px 16px; touch-action: none; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 12px; }
+  button { padding: 12px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: opacity 0.2s; min-height: 44px; }
+  button:active { opacity: 0.8; }
+  button:disabled { opacity: 0.4; }
   .btn-primary { background: #6366f1; color: #fff; }
   .btn-success { background: #22c55e; color: #fff; }
   .btn-danger { background: #ef4444; color: #fff; }
   .btn-secondary { background: #555; color: #fff; }
-  .status { text-align: center; padding: 10px; margin-bottom: 10px; border-radius: 8px; }
-  .status.info { background: rgba(99,102,241,0.2); color: #a5b4fc; }
-  .status.success { background: rgba(34,197,94,0.2); color: #86efac; }
-  .status.error { background: rgba(239,68,68,0.2); color: #fca5a5; }
-  .hidden { display: none; }
-  .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+  .hidden { display: none !important; }
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .refine-controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 10px; align-items: center; }
-  .mode-indicator { text-align: center; padding: 6px; font-size: 0.85rem; color: #aaa; }
+  .refine-panel { margin-bottom: 12px; }
+  .mode-indicator { text-align: center; padding: 6px; font-size: 0.8rem; color: #aaa; }
   .mode-indicator.active { color: #f59e0b; font-weight: 600; }
-  .brush-size { display: flex; align-items: center; gap: 8px; }
-  .brush-size input { width: 100px; }
-  .canvas-wrapper { position: relative; display: inline-block; }
-  .overlay-canvas { position: absolute; top: 0; left: 0; cursor: crosshair; }
-  /* Mobile optimizations */
-  @media (max-width: 600px) {
-    .container { padding: 10px; }
-    h1 { font-size: 1.4rem; }
-    .upload-zone { padding: 20px; }
-    .preview-area { flex-direction: column; }
-    .preview-box { min-width: 100%; max-width: 100%; }
-    button { padding: 12px 16px; font-size: 0.85rem; }
-    .refine-controls { gap: 6px; }
-    .brush-size input { width: 80px; }
-  }
+  .refine-controls { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; align-items: center; margin-top: 8px; }
+  .brush-size { display: flex; align-items: center; gap: 6px; }
+  .brush-size input { width: 80px; }
+  .canvas-wrapper { position: relative; display: inline-block; width: 100%; }
+  .overlay-canvas { position: absolute; top: 0; left: 0; touch-action: none; }
 </style>
+</head>
 <body>
 <div class="container">
-  <h1>🖼️ Browser BG Remover</h1>
+  <h1>🖼️ BG Remover</h1>
   
-  <div id="status" class="status info">Drop an image or click to upload</div>
+  <div id="status" class="status info">Tap to select a photo</div>
   
   <label class="upload-zone" id="upload-zone" for="file-input">
-    <input type="file" id="file-input" accept="image/*">
-    <p>📁 Click or drag & drop an image here</p>
-    <p style="font-size:0.8rem;color:#888;margin-top:8px;">Supports JPG, PNG, WebP • No install needed • Works offline after first load</p>
+    <input type="file" id="file-input" accept="image/*" capture="environment">
+    <p>📁 Tap to select photo</p>
+    <p class="hint">Supports JPG, PNG, WebP</p>
   </label>
   
   <div class="preview-area hidden" id="preview-area">
@@ -77,44 +69,36 @@
   </div>
   
   <div class="controls hidden" id="main-controls">
-    <button class="btn-primary" id="btn-remove-bg">🪄 Remove Background</button>
-    <button class="btn-secondary" id="btn-refine">✏️ Refine (Brush)</button>
-    <button class="btn-success" id="btn-download" disabled>⬇️ Download PNG</button>
+    <button class="btn-primary" id="btn-remove-bg">🪄 Remove BG</button>
+    <button class="btn-secondary" id="btn-refine">✏️ Refine</button>
+    <button class="btn-success" id="btn-download" disabled>⬇️ Save</button>
     <button class="btn-secondary" id="btn-reset">🔄 Reset</button>
   </div>
   
-  <div id="refine-panel" class="hidden" style="margin-bottom:20px;">
-    <div class="mode-indicator" id="mode-indicator">Paint Keep (green) or Remove (red) areas, then click Re-run SAM</div>
+  <div id="refine-panel" class="hidden refine-panel">
+    <div class="mode-indicator" id="mode-indicator">Paint Keep (green) or Erase (red)</div>
     <div class="refine-controls">
-      <button class="btn-success" id="btn-keep">+ Keep (Green)</button>
-      <button class="btn-danger" id="btn-remove">- Remove (Red)</button>
+      <button class="btn-success" id="btn-keep">+ Keep</button>
+      <button class="btn-danger" id="btn-erase">- Erase</button>
       <div class="brush-size">
-        <label>Size:</label>
-        <input type="range" id="brush-size" min="5" max="60" value="20">
-        <span id="brush-size-val">20</span>
+        <input type="range" id="brush-size" min="10" max="60" value="25">
+        <span id="brush-size-val">25</span>
       </div>
-      <button class="btn-secondary" id="btn-clear-strokes">Clear Strokes</button>
-      <button class="btn-secondary" id="btn-undo-sam">↩️ Undo</button>
-      <button class="btn-primary" id="btn-rerun">Re-run SAM</button>
-      <button class="btn-secondary" id="btn-exit-refine">Exit</button>
+      <button class="btn-secondary" id="btn-undo">↩️ Undo</button>
+      <button class="btn-secondary" id="btn-clear">Clear</button>
+      <button class="btn-primary" id="btn-rerun">Re-run</button>
+      <button class="btn-secondary" id="btn-exit">Exit</button>
     </div>
   </div>
 </div>
 
-<!-- TensorFlow.js for tensor operations -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-<!-- ONNX Runtime Web -->
-<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.min.js"></script>
-<!-- @imgly/background-removal -->
 <script type="module">
 import { removeBackground } from 'https://esm.sh/@imgly/background-removal@1.4.5';
 
-// ---- State ----
 let originalImage = null;
-let resultCanvas = null;
 let refineMode = false;
 let brushMode = 'keep';
-let brushSize = 20;
+let brushSize = 25;
 let isPainting = false;
 let paintedPoints = [];
 let undoStack = [];
@@ -122,13 +106,6 @@ let basePixels = null;
 let originalPixels = null;
 let originalWidth = 0;
 let originalHeight = 0;
-const DIM = 1024;
-let resizedWidth = 0;
-let resizedHeight = 0;
-let samEncoder = null;
-let samDecoder = null;
-let samReady = false;
-let imageEmbeddings = null;
 
 const $ = (sel) => document.querySelector(sel);
 const status = (msg, type = 'info') => {
@@ -137,29 +114,24 @@ const status = (msg, type = 'info') => {
   el.className = 'status ' + type;
 };
 
-// ---- Upload handling ----
 const uploadZone = $('#upload-zone');
 const fileInput = $('#file-input');
 
 uploadZone.addEventListener('click', (e) => {
-  // Fallback for mobile browsers where label[for] doesn't trigger
   if (e.target === uploadZone || e.target.tagName === 'P') {
     fileInput.click();
   }
 });
-uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
-uploadZone.addEventListener('drop', (e) => { e.preventDefault(); uploadZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+
 fileInput.addEventListener('change', (e) => {
   const file = e.target.files && e.target.files[0];
   if (file) handleFile(file);
-  // Reset input so same file can be selected again
   e.target.value = '';
 });
 
 function handleFile(file) {
   if (!file) { status('No file selected', 'error'); return; }
-  if (!file.type.startsWith('image/')) { status('Please select an image file (got: ' + file.type + ')', 'error'); return; }
+  if (!file.type.startsWith('image/')) { status('Select an image file', 'error'); return; }
   status('Loading image...', 'info');
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -178,27 +150,21 @@ function handleFile(file) {
       const overlay = $('#overlay-canvas');
       overlay.width = img.width;
       overlay.height = img.height;
-      resultCanvas = canvas;
-      status('Image loaded (' + img.width + 'x' + img.height + '). Click "Remove Background" to start.', 'info');
+      status('Image loaded. Tap "Remove BG".', 'info');
     };
-    img.onerror = () => {
-      status('Failed to load image. Try a different file.', 'error');
-    };
+    img.onerror = () => status('Failed to load image', 'error');
     img.src = e.target.result;
   };
-  reader.onerror = () => {
-    status('Failed to read file. Try a different file.', 'error');
-  };
+  reader.onerror = () => status('Failed to read file', 'error');
   reader.readAsDataURL(file);
 }
 
-// ---- Auto BG Removal ----
 $('#btn-remove-bg').addEventListener('click', async () => {
   if (!originalImage) return;
   const btn = $('#btn-remove-bg');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Removing...';
-  status('Removing background (first run downloads ~40MB model)...', 'info');
+  status('Removing background...', 'info');
   try {
     const blob = await removeBackground($('#original-img').src);
     const url = URL.createObjectURL(blob);
@@ -213,20 +179,18 @@ $('#btn-remove-bg').addEventListener('click', async () => {
       const overlay = $('#overlay-canvas');
       overlay.width = img.width;
       overlay.height = img.height;
-      resultCanvas = canvas;
       $('#btn-download').disabled = false;
-      status('Background removed! Use "Refine" for touch-up.', 'success');
+      status('Background removed! Tap "Refine" to touch up.', 'success');
     };
     img.src = url;
   } catch (err) {
     status('Error: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '🪄 Remove Background';
+    btn.innerHTML = '🪄 Remove BG';
   }
 });
 
-// ---- Download ----
 $('#btn-download').addEventListener('click', () => {
   const canvas = $('#result-canvas');
   canvas.toBlob((blob) => {
@@ -239,7 +203,6 @@ $('#btn-download').addEventListener('click', () => {
   }, 'image/png');
 });
 
-// ---- Reset ----
 $('#btn-reset').addEventListener('click', () => {
   originalImage = null;
   basePixels = null;
@@ -252,10 +215,9 @@ $('#btn-reset').addEventListener('click', () => {
   $('#refine-panel').classList.add('hidden');
   $('#original-img').src = '';
   fileInput.value = '';
-  status('Drop an image or click to upload', 'info');
+  status('Tap to select a photo', 'info');
 });
 
-// ---- Refine Mode (Brush → SAM) ----
 $('#btn-refine').addEventListener('click', () => {
   refineMode = true;
   $('#refine-panel').classList.remove('hidden');
@@ -264,18 +226,13 @@ $('#btn-refine').addEventListener('click', () => {
   const canvas = $('#result-canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   basePixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  originalWidth = canvas.width;
-  originalHeight = canvas.height;
-  resizedWidth = DIM;
-  resizedHeight = Math.round(DIM * originalHeight / originalWidth);
   paintedPoints = [];
   undoStack = [];
   const overlay = $('#overlay-canvas');
   overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
-  loadSAM();
 });
 
-$('#btn-exit-refine').addEventListener('click', () => {
+$('#btn-exit').addEventListener('click', () => {
   refineMode = false;
   paintedPoints = [];
   const overlay = $('#overlay-canvas');
@@ -285,21 +242,14 @@ $('#btn-exit-refine').addEventListener('click', () => {
 });
 
 $('#btn-keep').addEventListener('click', () => { brushMode = 'keep'; updateModeIndicator(); });
-$('#btn-remove').addEventListener('click', () => { brushMode = 'remove'; updateModeIndicator(); });
+$('#btn-erase').addEventListener('click', () => { brushMode = 'erase'; updateModeIndicator(); });
 
 $('#brush-size').addEventListener('input', (e) => {
   brushSize = parseInt(e.target.value);
   $('#brush-size-val').textContent = brushSize;
 });
 
-$('#btn-clear-strokes').addEventListener('click', () => {
-  paintedPoints = [];
-  const overlay = $('#overlay-canvas');
-  overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
-  status('Strokes cleared.', 'info');
-});
-
-$('#btn-undo-sam').addEventListener('click', () => {
+$('#btn-undo').addEventListener('click', () => {
   if (undoStack.length === 0) { status('Nothing to undo', 'info'); return; }
   const prev = undoStack.pop();
   const canvas = $('#result-canvas');
@@ -308,223 +258,120 @@ $('#btn-undo-sam').addEventListener('click', () => {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   ctx.putImageData(prev, 0, 0);
   basePixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  imageEmbeddings = null;
+  status('Undone', 'info');
+});
+
+$('#btn-clear').addEventListener('click', () => {
   paintedPoints = [];
   const overlay = $('#overlay-canvas');
   overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
-  status('Reverted. Paint new strokes and re-run.', 'info');
+  status('Cleared', 'info');
+});
+
+$('#btn-rerun').addEventListener('click', () => {
+  if (paintedPoints.length === 0) { status('Paint something first', 'error'); return; }
+  const canvas = $('#result-canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+  if (undoStack.length > 10) undoStack.shift();
+  
+  // Simple approach: just apply the painted strokes directly
+  // Keep = restore from original, Erase = transparent
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  for (const p of paintedPoints) {
+    const idx = (p.y * canvas.width + p.x) * 4;
+    if (p.label === 1) { // keep
+      const oidx = (p.y * originalPixels.width + p.x) * 4;
+      imageData.data[idx] = originalPixels.data[oidx];
+      imageData.data[idx + 1] = originalPixels.data[oidx + 1];
+      imageData.data[idx + 2] = originalPixels.data[oidx + 2];
+      imageData.data[idx + 3] = originalPixels.data[oidx + 3];
+    } else { // erase
+      imageData.data[idx + 3] = 0;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+  basePixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  
+  const overlay = $('#overlay-canvas');
+  overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
+  paintedPoints = [];
+  status('Applied! Paint more or download.', 'success');
 });
 
 function updateModeIndicator() {
   const el = $('#mode-indicator');
-  el.textContent = brushMode === 'keep' 
-    ? '🟢 Keep mode — paint areas to KEEP' 
-    : '🔴 Remove mode — paint areas to REMOVE';
+  el.textContent = brushMode === 'keep' ? '🟢 Keep — paint to restore' : '🔴 Erase — paint to remove';
 }
 
-// ---- Brush Painting on Overlay ----
+// ---- Brush Painting ----
 const overlay = $('#overlay-canvas');
 let isPainting = false;
 
-function getCanvasCoords(e) {
+function getCoords(e) {
   const rect = overlay.getBoundingClientRect();
   const scaleX = overlay.width / rect.width;
   const scaleY = overlay.height / rect.height;
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
   return {
-    x: (e.clientX - rect.left) * scaleX,
-    y: (e.clientY - rect.top) * scaleY
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY
   };
 }
 
-function paintStroke(x, y) {
+function paintAt(x, y) {
   const ctx = overlay.getContext('2d');
-  const radius = brushSize;
-  ctx.fillStyle = brushMode === 'keep' ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)';
+  const r = brushSize;
+  ctx.fillStyle = brushMode === 'keep' ? 'rgba(34,197,94,0.5)' : 'rgba(239,68,68,0.5)';
   ctx.beginPath();
-  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.fill();
   
-  const step = Math.max(2, Math.floor(brushSize / 2));
-  for (let dy = -radius; dy <= radius; dy += step) {
-    for (let dx = -radius; dx <= radius; dx += step) {
-      if (dx * dx + dy * dy > radius * radius) continue;
+  for (let dy = -r; dy <= r; dy += 3) {
+    for (let dx = -r; dx <= r; dx += 3) {
+      if (dx*dx + dy*dy > r*r) continue;
       const px = Math.round(x + dx);
       const py = Math.round(y + dy);
       if (px < 0 || py < 0 || px >= overlay.width || py >= overlay.height) continue;
-      const exists = paintedPoints.some(p => Math.abs(p.x - px) < 3 && Math.abs(p.y - py) < 3 && p.label === (brushMode === 'keep' ? 1 : 0));
-      if (!exists) {
-        paintedPoints.push({ x: px, y: py, label: brushMode === 'keep' ? 1 : 0 });
-      }
+      const exists = paintedPoints.some(p => Math.abs(p.x-px) < 2 && Math.abs(p.y-py) < 2);
+      if (!exists) paintedPoints.push({ x: px, y: py, label: brushMode === 'keep' ? 1 : 0 });
     }
   }
 }
-
-overlay.addEventListener('mousedown', (e) => {
-  if (!refineMode) return;
-  isPainting = true;
-  const { x, y } = getCanvasCoords(e);
-  paintStroke(x, y);
-});
-
-overlay.addEventListener('mousemove', (e) => {
-  if (!refineMode || !isPainting) return;
-  const { x, y } = getCanvasCoords(e);
-  paintStroke(x, y);
-});
-
-overlay.addEventListener('mouseup', () => { isPainting = false; });
-overlay.addEventListener('mouseleave', () => { isPainting = false; });
 
 overlay.addEventListener('touchstart', (e) => {
   if (!refineMode) return;
   e.preventDefault();
   isPainting = true;
-  const touch = e.touches[0];
-  const { x, y } = getCanvasCoords(touch);
-  paintStroke(x, y);
+  const { x, y } = getCoords(e);
+  paintAt(x, y);
 }, { passive: false });
 
 overlay.addEventListener('touchmove', (e) => {
   if (!refineMode || !isPainting) return;
   e.preventDefault();
-  const touch = e.touches[0];
-  const { x, y } = getCanvasCoords(touch);
-  paintStroke(x, y);
+  const { x, y } = getCoords(e);
+  paintAt(x, y);
 }, { passive: false });
 
 overlay.addEventListener('touchend', () => { isPainting = false; });
 
-// ---- MobileSAM Loading ----
-async function loadSAM() {
-  if (samReady) return;
-  status('Loading MobileSAM model (~40MB)...', 'info');
-  try {
-    const ort = window.ort;
-    ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/';
-    ort.env.wasm.numThreads = 1;
-    samEncoder = await ort.InferenceSession.create(
-      'https://huggingface.co/Acly/MobileSAM/resolve/main/mobile_sam_image_encoder.onnx',
-      { executionProviders: ['wasm'] }
-    );
-    samDecoder = await ort.InferenceSession.create(
-      'https://huggingface.co/Acly/MobileSAM/resolve/main/sam_mask_decoder_single.onnx',
-      { executionProviders: ['wasm'] }
-    );
-    samReady = true;
-    status('MobileSAM ready! Paint strokes then click "Re-run SAM".', 'success');
-  } catch (err) {
-    status('Failed to load MobileSAM: ' + err.message, 'error');
-    console.error(err);
-  }
-}
-
-// ---- Encode Image ----
-async function encodeImage() {
-  const canvas = $('#result-canvas');
-  originalWidth = canvas.width;
-  originalHeight = canvas.height;
-  status('Encoding image with MobileSAM...', 'info');
-  const ort = window.ort;
-  resizedWidth = DIM;
-  resizedHeight = Math.round(DIM * originalHeight / originalWidth);
-  const resizedCanvas = document.createElement('canvas');
-  resizedCanvas.width = resizedWidth;
-  resizedCanvas.height = resizedHeight;
-  const rctx = resizedCanvas.getContext('2d');
-  rctx.drawImage(canvas, 0, 0, resizedWidth, resizedHeight);
-  const resizedData = rctx.getImageData(0, 0, resizedWidth, resizedHeight);
-  const tfTensor = tf.tensor(resizedData.data, [resizedHeight, resizedWidth, 4], 'float32');
-  const rgb = tfTensor.slice([0, 0, 0], [resizedHeight, resizedWidth, 3]);
-  const inputTensor = new ort.Tensor('float32', rgb.dataSync(), [resizedHeight, resizedWidth, 3]);
-  const start = Date.now();
-  const results = await samEncoder.run({ input_image: inputTensor });
-  imageEmbeddings = results.image_embeddings;
-  const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-  status(`Image encoded in ${elapsed}s. Paint strokes then click "Re-run SAM".`, 'success');
-}
-
-// ---- Re-run SAM ----
-$('#btn-rerun').addEventListener('click', async () => {
-  if (!samReady) { status('MobileSAM model still loading... please wait', 'info'); return; }
-  if (paintedPoints.length === 0) { status('Paint at least one stroke (green Keep or red Remove) first', 'error'); return; }
-  const btn = $('#btn-rerun');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Running...';
-  const canvas = $('#result-canvas');
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-  if (undoStack.length > 10) undoStack.shift();
-  await new Promise(r => setTimeout(r, 50));
-  if (!imageEmbeddings) { await encodeImage(); }
-  try {
-    const ort = window.ort;
-    const scaleX = DIM / originalWidth;
-    const scaleY = (DIM * originalHeight / originalWidth) / originalHeight;
-    const pointCoords = new Float32Array(paintedPoints.length * 2);
-    const pointLabels = new Float32Array(paintedPoints.length);
-    paintedPoints.forEach((p, i) => {
-      pointCoords[i * 2] = p.x * scaleX;
-      pointCoords[i * 2 + 1] = p.y * scaleY;
-      pointLabels[i] = p.label;
-    });
-    const maskInput = new ort.Tensor('float32', new Float32Array(256 * 256), [1, 1, 256, 256]);
-    const hasMask = new ort.Tensor('float32', new Float32Array([0]), [1]);
-    const origSize = new ort.Tensor('float32', new Float32Array([resizedHeight, resizedWidth]), [2]);
-    const feeds = {
-      image_embeddings: imageEmbeddings,
-      point_coords: new ort.Tensor('float32', pointCoords, [1, paintedPoints.length, 2]),
-      point_labels: new ort.Tensor('float32', pointLabels, [1, paintedPoints.length]),
-      mask_input: maskInput,
-      has_mask_input: hasMask,
-      orig_im_size: origSize
-    };
-    const start = Date.now();
-    const results = await samDecoder.run(feeds);
-    const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-    const masks = results.masks;
-    const maskData = masks.data;
-    const maskDims = masks.dims;
-    const maskH = maskDims[2];
-    const maskW = maskDims[3];
-    const imageData = new ImageData(new Uint8ClampedArray(basePixels.data), originalWidth, originalHeight);
-    for (let y = 0; y < originalHeight; y++) {
-      for (let x = 0; x < originalWidth; x++) {
-        const mx = Math.min(maskW - 1, Math.round(x * maskW / originalWidth));
-        const my = Math.min(maskH - 1, Math.round(y * maskH / originalHeight));
-        const maskVal = maskData[my * maskW + mx];
-        const idx = (y * originalWidth + x) * 4;
-        if (maskVal > 0) {
-          imageData.data[idx + 3] = 0;
-        } else {
-          imageData.data[idx] = basePixels.data[idx];
-          imageData.data[idx + 1] = basePixels.data[idx + 1];
-          imageData.data[idx + 2] = basePixels.data[idx + 2];
-          imageData.data[idx + 3] = basePixels.data[idx + 3];
-        }
-      }
-    }
-    ctx.putImageData(imageData, 0, 0);
-    basePixels = ctx.getImageData(0, 0, originalWidth, originalHeight);
-    imageEmbeddings = null;
-    const overlay = $('#overlay-canvas');
-    overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
-    paintedPoints = [];
-    status(`Mask generated in ${elapsed}s. Paint more strokes or download.`, 'success');
-  } catch (err) {
-    status('Error: ' + err.message, 'error');
-    console.error(err);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = 'Re-run SAM';
-  }
+overlay.addEventListener('mousedown', (e) => {
+  if (!refineMode) return;
+  isPainting = true;
+  const { x, y } = getCoords(e);
+  paintAt(x, y);
 });
 
-// Auto-encode when entering refine mode
-$('#btn-refine').addEventListener('click', () => {
-  setTimeout(() => {
-    if (samReady && !imageEmbeddings) encodeImage();
-  }, 100);
+overlay.addEventListener('mousemove', (e) => {
+  if (!refineMode || !isPainting) return;
+  const { x, y } = getCoords(e);
+  paintAt(x, y);
 });
+
+overlay.addEventListener('mouseup', () => { isPainting = false; });
+overlay.addEventListener('mouseleave', () => { isPainting = false; });
 </script>
 </body>
 </html>
