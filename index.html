@@ -38,8 +38,18 @@
   .brush-size input { width: 100px; }
   .canvas-wrapper { position: relative; display: inline-block; }
   .overlay-canvas { position: absolute; top: 0; left: 0; cursor: crosshair; }
+  /* Mobile optimizations */
+  @media (max-width: 600px) {
+    .container { padding: 10px; }
+    h1 { font-size: 1.4rem; }
+    .upload-zone { padding: 20px; }
+    .preview-area { flex-direction: column; }
+    .preview-box { min-width: 100%; max-width: 100%; }
+    button { padding: 12px 16px; font-size: 0.85rem; }
+    .refine-controls { gap: 6px; }
+    .brush-size input { width: 80px; }
+  }
 </style>
-</head>
 <body>
 <div class="container">
   <h1>🖼️ Browser BG Remover</h1>
@@ -131,10 +141,21 @@ const status = (msg, type = 'info') => {
 const uploadZone = $('#upload-zone');
 const fileInput = $('#file-input');
 
+uploadZone.addEventListener('click', (e) => {
+  // Fallback for mobile browsers where label[for] doesn't trigger
+  if (e.target === uploadZone || e.target.tagName === 'P') {
+    fileInput.click();
+  }
+});
 uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
 uploadZone.addEventListener('drop', (e) => { e.preventDefault(); uploadZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
-fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (file) handleFile(file);
+  // Reset input so same file can be selected again
+  e.target.value = '';
+});
 
 function handleFile(file) {
   if (!file || !file.type.startsWith('image/')) { status('Please select an image file', 'error'); return; }
@@ -156,6 +177,9 @@ function handleFile(file) {
       overlay.height = originalImage.height;
       resultCanvas = canvas;
       status('Image loaded. Click "Remove Background" to start.', 'info');
+    };
+    originalImage.onerror = () => {
+      status('Failed to load image. Try a different file.', 'error');
     };
     originalImage.src = e.target.result;
   };
