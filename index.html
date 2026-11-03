@@ -413,10 +413,10 @@ $('#btn-rerun').addEventListener('click', async () => {
           console.log('SAM mask: dims=', maskDims, 'min=', minV, 'max=', maxV, 'point(0,0)=', maskVal);
         }
         const idx = (y * originalWidth + x) * 4;
-        if (maskVal < 0) {  // logits: < 0 means background
+        if (maskVal > 0) {  // logits: > 0 means background (inverted test)
           imageData.data[idx + 3] = 0; // transparent
         } else {
-          // Restore from original image (full opacity)
+          // restore from original
           imageData.data[idx] = originalPixels.data[idx];
           imageData.data[idx + 1] = originalPixels.data[idx + 1];
           imageData.data[idx + 2] = originalPixels.data[idx + 2];
