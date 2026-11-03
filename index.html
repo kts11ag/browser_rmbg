@@ -79,6 +79,7 @@
       <button class="btn-success" id="btn-keep">+ Keep</button>
       <button class="btn-danger" id="btn-remove">- Remove</button>
       <button class="btn-secondary" id="btn-undo">Undo</button>
+      <button class="btn-secondary" id="btn-clear-dots">Clear All</button>
       <button class="btn-primary" id="btn-rerun">Re-run SAM</button>
       <button class="btn-secondary" id="btn-exit-refine">Exit</button>
     </div>
@@ -199,12 +200,15 @@ $('#btn-download').addEventListener('click', () => {
 $('#btn-reset').addEventListener('click', () => {
   originalImage = null;
   imageEmbeddings = null;
-  originalPixels = null;
+  basePixels = null;
+  points = [];
+  refineMode = false;
   $('#preview-area').classList.add('hidden');
   $('#main-controls').classList.add('hidden');
   $('#refine-panel').classList.add('hidden');
   $('#original-img').src = '';
   fileInput.value = '';
+  renderPoints();
   status('Drop an image or click to upload', 'info');
 });
 
@@ -234,6 +238,7 @@ $('#btn-exit-refine').addEventListener('click', () => {
 $('#btn-keep').addEventListener('click', () => { currentLabel = 1; updateModeIndicator(); });
 $('#btn-remove').addEventListener('click', () => { currentLabel = 0; updateModeIndicator(); });
 $('#btn-undo').addEventListener('click', () => { points.pop(); renderPoints(); });
+$('#btn-clear-dots').addEventListener('click', () => { points = []; renderPoints(); status('All points cleared.', 'info'); });
 
 function updateModeIndicator() {
   const el = $('#mode-indicator');
@@ -324,6 +329,8 @@ $('#btn-rerun').addEventListener('click', async () => {
   const btn = $('#btn-rerun');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Running...';
+  // Force UI repaint so "Running..." is visible before async work
+  await new Promise(r => setTimeout(r, 50));
   // If no positive (keep) points, auto-add one at center so SAM knows what to keep
   const hasPositive = points.some(p => p.label === 1);
   let effectivePoints = [...points];
