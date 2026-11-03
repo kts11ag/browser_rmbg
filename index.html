@@ -399,6 +399,9 @@ $('#btn-rerun').addEventListener('click', async () => {
         const mx = Math.min(maskW - 1, Math.round(x * maskW / originalWidth));
         const my = Math.min(maskH - 1, Math.round(y * maskH / originalHeight));
         const maskVal = maskData[my * maskW + mx];
+        if (y === 0 && x === 0) {
+          console.log('SAM mask: dims=', maskDims, 'min=', Math.min(...maskData), 'max=', Math.max(...maskData), 'point(0,0)=', maskVal);
+        }
         const idx = (y * originalWidth + x) * 4;
         if (maskVal < 0) {  // logits: < 0 means background
           imageData.data[idx + 3] = 0; // transparent
