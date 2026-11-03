@@ -158,30 +158,36 @@ fileInput.addEventListener('change', (e) => {
 });
 
 function handleFile(file) {
-  if (!file || !file.type.startsWith('image/')) { status('Please select an image file', 'error'); return; }
+  if (!file) { status('No file selected', 'error'); return; }
+  if (!file.type.startsWith('image/')) { status('Please select an image file (got: ' + file.type + ')', 'error'); return; }
+  status('Loading image...', 'info');
   const reader = new FileReader();
   reader.onload = (e) => {
-    originalImage = new Image();
-    originalImage.onload = () => {
+    const img = new Image();
+    originalImage = img;
+    img.onload = () => {
       $('#original-img').src = e.target.result;
       $('#preview-area').classList.remove('hidden');
       $('#main-controls').classList.remove('hidden');
       const canvas = $('#result-canvas');
-      canvas.width = originalImage.width;
-      canvas.height = originalImage.height;
+      canvas.width = img.width;
+      canvas.height = img.height;
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(originalImage, 0, 0);
-      originalPixels = ctx.getImageData(0, 0, originalImage.width, originalImage.height);
+      ctx.drawImage(img, 0, 0);
+      originalPixels = ctx.getImageData(0, 0, img.width, img.height);
       const overlay = $('#overlay-canvas');
-      overlay.width = originalImage.width;
-      overlay.height = originalImage.height;
+      overlay.width = img.width;
+      overlay.height = img.height;
       resultCanvas = canvas;
-      status('Image loaded. Click "Remove Background" to start.', 'info');
+      status('Image loaded (' + img.width + 'x' + img.height + '). Click "Remove Background" to start.', 'info');
     };
-    originalImage.onerror = () => {
+    img.onerror = () => {
       status('Failed to load image. Try a different file.', 'error');
     };
-    originalImage.src = e.target.result;
+    img.src = e.target.result;
+  };
+  reader.onerror = () => {
+    status('Failed to read file. Try a different file.', 'error');
   };
   reader.readAsDataURL(file);
 }
