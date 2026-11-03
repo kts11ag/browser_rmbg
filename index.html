@@ -382,6 +382,7 @@ $('#btn-rerun').addEventListener('click', async () => {
       orig_im_size: origSize
     };
     
+    console.log('SAM: points=', effectivePoints.map(p => `(${p.x},${p.y} label=${p.label})`), 'scaled=', Array.from(pointCoords), 'origSize=', [resizedHeight, resizedWidth], 'canvas=', [originalWidth, originalHeight]);
     const start = Date.now();
     const results = await samDecoder.run(feeds);
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
