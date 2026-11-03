@@ -408,10 +408,10 @@ $('#btn-rerun').addEventListener('click', async () => {
         if (maskVal > 0) {  // background → remove
           imageData.data[idx + 3] = 0; // transparent
         } else {  // foreground → keep
-          imageData.data[idx] = originalPixels.data[idx];
-          imageData.data[idx + 1] = originalPixels.data[idx + 1];
-          imageData.data[idx + 2] = originalPixels.data[idx + 2];
-          imageData.data[idx + 3] = 255;
+          imageData.data[idx] = basePixels.data[idx];
+          imageData.data[idx + 1] = basePixels.data[idx + 1];
+          imageData.data[idx + 2] = basePixels.data[idx + 2];
+          imageData.data[idx + 3] = basePixels.data[idx + 3];
         }
       }
     }
