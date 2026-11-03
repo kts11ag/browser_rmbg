@@ -97,7 +97,11 @@
 <script type="module">
 import { removeBackground } from 'https://esm.sh/@imgly/background-removal@1.4.5';
 
-// ---- State ----
+// Force TensorFlow.js to use CPU backend (WebGL may not be available on file://)
+tf.setBackend('cpu');
+tf.ready().then(() => {
+  console.log('TF.js backend:', tf.getBackend());
+});
 let originalImage = null;
 let resultCanvas = null;
 let refineMode = false;
@@ -144,7 +148,7 @@ function handleFile(file) {
       const canvas = $('#result-canvas');
       canvas.width = originalImage.width;
       canvas.height = originalImage.height;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(originalImage, 0, 0);
       originalPixels = ctx.getImageData(0, 0, originalImage.width, originalImage.height);
       basePixels = ctx.getImageData(0, 0, originalImage.width, originalImage.height);
@@ -175,7 +179,7 @@ $('#btn-remove-bg').addEventListener('click', async () => {
       const canvas = $('#result-canvas');
       canvas.width = img.width;
       canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(img, 0, 0);
       basePixels = ctx.getImageData(0, 0, img.width, img.height);
       resultCanvas = canvas;
@@ -229,7 +233,7 @@ $('#btn-refine').addEventListener('click', () => {
   updateModeIndicator();
   // Snapshot current canvas as base for SAM refinement
   const canvas = $('#result-canvas');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   basePixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
   originalWidth = canvas.width;
   originalHeight = canvas.height;
@@ -389,7 +393,7 @@ $('#btn-rerun').addEventListener('click', async () => {
     const maskH = maskDims[2]; // resizedHeight
     const maskW = maskDims[3]; // resizedWidth
     
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const imageData = new ImageData(new Uint8ClampedArray(basePixels.data), originalWidth, originalHeight);
     
     // Scale mask from resized to original dimensions and apply
@@ -400,7 +404,12 @@ $('#btn-rerun').addEventListener('click', async () => {
         const my = Math.min(maskH - 1, Math.round(y * maskH / originalHeight));
         const maskVal = maskData[my * maskW + mx];
         if (y === 0 && x === 0) {
-          console.log('SAM mask: dims=', maskDims, 'min=', Math.min(...maskData), 'max=', Math.max(...maskData), 'point(0,0)=', maskVal);
+          let minV = maskData[0], maxV = maskData[0];
+          for (let i = 1; i < maskData.length; i++) {
+            if (maskData[i] < minV) minV = maskData[i];
+            if (maskData[i] > maxV) maxV = maskData[i];
+          }
+          console.log('SAM mask: dims=', maskDims, 'min=', minV, 'max=', maxV, 'point(0,0)=', maskVal);
         }
         const idx = (y * originalWidth + x) * 4;
         if (maskVal < 0) {  // logits: < 0 means background
