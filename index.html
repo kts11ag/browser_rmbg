@@ -395,36 +395,24 @@ $('#btn-rerun').addEventListener('click', async () => {
     const maskW = maskDims[3]; // resizedWidth
     
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    const imageData = new ImageData(new Uint8ClampedArray(basePixels.data), originalWidth, originalHeight);
-    
-    // Scale mask from resized to original dimensions and apply
-    for (let y = 0; y < originalHeight; y++) {
-      for (let x = 0; x < originalWidth; x++) {
-        // Map original pixel to resized mask coordinate
-        const mx = Math.min(maskW - 1, Math.round(x * maskW / originalWidth));
-        const my = Math.min(maskH - 1, Math.round(y * maskH / originalHeight));
-        const maskVal = maskData[my * maskW + mx];
-        if (y === 0 && x === 0) {
-          let minV = maskData[0], maxV = maskData[0];
-          for (let i = 1; i < maskData.length; i++) {
-            if (maskData[i] < minV) minV = maskData[i];
-            if (maskData[i] > maxV) maxV = maskData[i];
-          }
-          console.log('SAM mask: dims=', maskDims, 'min=', minV, 'max=', maxV, 'point(0,0)=', maskVal);
-        }
-        const idx = (y * originalWidth + x) * 4;
-        if (maskVal < 0) {  // logits: < 0 means background
-          imageData.data[idx + 3] = 0; // transparent
-        } else {
-          // restore from original
-          imageData.data[idx] = originalPixels.data[idx];
-          imageData.data[idx + 1] = originalPixels.data[idx + 1];
-          imageData.data[idx + 2] = originalPixels.data[idx + 2];
-          imageData.data[idx + 3] = 255;
-        }
-      }
+    // DEBUG: Draw mask as green overlay to see what SAM segmented
+    const maskImageData = new ImageData(maskW, maskH);
+    for (let i = 0; i < maskData.length; i++) {
+      const v = maskData[i] > 0 ? 255 : 0;
+      maskImageData.data[i*4] = 0;
+      maskImageData.data[i*4+1] = v;
+      maskImageData.data[i*4+2] = 0;
+      maskImageData.data[i*4+3] = 128;
     }
-    ctx.putImageData(imageData, 0, 0);
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = maskW;
+    maskCanvas.height = maskH;
+    maskCanvas.getContext('2d').putImageData(maskImageData, 0, 0);
+    const ctx2 = canvas.getContext('2d', { willReadFrequently: true });
+    ctx2.globalAlpha = 0.5;
+    ctx2.drawImage(maskCanvas, 0, 0, originalWidth, originalHeight);
+    ctx2.globalAlpha = 1.0;
+    status('Mask overlaid (green=foreground). Check if green covers wanted area.', 'info');
     
     // Update basePixels to the new refined result for next Re-run
     basePixels = ctx.getImageData(0, 0, originalWidth, originalHeight);
