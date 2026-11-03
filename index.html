@@ -364,8 +364,8 @@ $('#btn-rerun').addEventListener('click', async () => {
     const pointCoords = new Float32Array(effectivePoints.length * 2);
     const pointLabels = new Float32Array(effectivePoints.length);
     effectivePoints.forEach((p, i) => {
-      pointCoords[i * 2] = p.x * scaleX;
-      pointCoords[i * 2 + 1] = p.y * scaleY;
+      pointCoords[i * 2] = p.y * scaleY;
+      pointCoords[i * 2 + 1] = p.x * scaleX;
       pointLabels[i] = p.label;
     });
     
@@ -413,7 +413,7 @@ $('#btn-rerun').addEventListener('click', async () => {
           console.log('SAM mask: dims=', maskDims, 'min=', minV, 'max=', maxV, 'point(0,0)=', maskVal);
         }
         const idx = (y * originalWidth + x) * 4;
-        if (maskVal > 0) {  // logits: > 0 means background (inverted test)
+        if (maskVal < 0) {  // logits: < 0 means background
           imageData.data[idx + 3] = 0; // transparent
         } else {
           // restore from original
