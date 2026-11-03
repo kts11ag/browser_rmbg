@@ -339,7 +339,8 @@ async function encodeImage() {
 
 // ---- Re-run SAM ----
 $('#btn-rerun').addEventListener('click', async () => {
-  if (!samReady || points.length === 0) { status('Add points first and wait for model to load', 'error'); return; }
+  if (!samReady) { status('MobileSAM model still loading... please wait', 'info'); return; }
+  if (points.length === 0) { status('Add at least one point (green Keep or red Remove) on the image first', 'error'); return; }
   const btn = $('#btn-rerun');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Running...';
