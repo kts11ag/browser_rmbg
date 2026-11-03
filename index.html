@@ -250,20 +250,20 @@ $('#btn-exit-refine').addEventListener('click', () => {
   $('#mode-indicator').classList.remove('active');
 });
 
-$('#btn-keep').addEventListener('click', () => { currentLabel = 1; updateModeIndicator(); });
-$('#btn-remove').addEventListener('click', () => { currentLabel = 0; updateModeIndicator(); });
+$('#btn-keep').addEventListener('click', () => { currentLabel = 0; updateModeIndicator(); }); // 0 = foreground in this model
+$('#btn-remove').addEventListener('click', () => { currentLabel = 1; updateModeIndicator(); }); // 1 = background in this model
 $('#btn-undo').addEventListener('click', () => { points.pop(); renderPoints(); });
 $('#btn-clear-dots').addEventListener('click', () => { points = []; renderPoints(); status('All points cleared.', 'info'); });
 
 function updateModeIndicator() {
   const el = $('#mode-indicator');
-  el.textContent = currentLabel === 1 ? '🟢 Keep mode — tap on areas to KEEP' : '🔴 Remove mode — tap on areas to REMOVE';
+  el.textContent = currentLabel === 0 ? '🟢 Keep mode — tap on areas to KEEP' : '🔴 Remove mode — tap on areas to REMOVE';
 }
 
 function renderPoints() {
   const layer = $('#points-layer');
   layer.innerHTML = points.map(p => {
-    return `<div class="point ${p.label === 1 ? 'keep' : 'remove'}" style="left:${p.displayX}px;top:${p.displayY}px;"></div>`;
+    return `<div class="point ${p.label === 0 ? 'keep' : 'remove'}" style="left:${p.displayX}px;top:${p.displayY}px;"></div>`;
   }).join('');
 }
 
@@ -346,10 +346,10 @@ $('#btn-rerun').addEventListener('click', async () => {
   // Force UI repaint so "Running..." is visible before async work
   await new Promise(r => setTimeout(r, 50));
   // If no positive (keep) points, auto-add one at center so SAM knows what to keep
-  const hasPositive = points.some(p => p.label === 1);
+  const hasPositive = points.some(p => p.label === 0); // 0 = keep in this model
   let effectivePoints = [...points];
   if (!hasPositive) {
-    effectivePoints.push({ x: Math.round(originalWidth / 2), y: Math.round(originalHeight / 2), label: 1, displayX: 0, displayY: 0 });
+    effectivePoints.push({ x: Math.round(originalWidth / 2), y: Math.round(originalHeight / 2), label: 0, displayX: 0, displayY: 0 }); // 0 = keep
     status('No "Keep" points — auto-added center as keep. Add green dots for better results.', 'info');
   }
   if (!imageEmbeddings) { await encodeImage(); }
@@ -364,8 +364,8 @@ $('#btn-rerun').addEventListener('click', async () => {
     const pointCoords = new Float32Array(effectivePoints.length * 2);
     const pointLabels = new Float32Array(effectivePoints.length);
     effectivePoints.forEach((p, i) => {
-      pointCoords[i * 2] = p.y * scaleY;
-      pointCoords[i * 2 + 1] = p.x * scaleX;
+      pointCoords[i * 2] = p.x * scaleX;
+      pointCoords[i * 2 + 1] = p.y * scaleY;
       pointLabels[i] = p.label;
     });
     
