@@ -93,7 +93,18 @@
 </div>
 
 <script type="module">
-import { removeBackground } from 'https://esm.sh/@imgly/background-removal@1.4.5';
+let removeBackgroundFn = null;
+async function loadBgRemoval() {
+  if (removeBackgroundFn) return removeBackgroundFn;
+  try {
+    const mod = await import('https://esm.sh/@imgly/background-removal@1.4.5');
+    removeBackgroundFn = mod.removeBackground;
+    return removeBackgroundFn;
+  } catch (err) {
+    status('Failed to load BG removal library: ' + err.message, 'error');
+    throw err;
+  }
+}
 
 let originalImage = null;
 let refineMode = false;
@@ -107,6 +118,10 @@ let originalPixels = null;
 let originalWidth = 0;
 let originalHeight = 0;
 
+window.addEventListener('error', (e) => {
+  status('Error: ' + (e.message || 'Unknown error'), 'error');
+  console.error(e);
+});
 const $ = (sel) => document.querySelector(sel);
 const status = (msg, type = 'info') => {
   const el = $('#status');
@@ -131,37 +146,46 @@ function handleFile(file) {
   if (!file.type.startsWith('image/')) { status('Select an image file', 'error'); return; }
   status('Loading image...', 'info');
   
-  // Use object URL instead of FileReader for better mobile compatibility
-  const url = URL.createObjectURL(file);
-  const img = new Image();
-  originalImage = img;
-  img.onload = () => {
-    let w = img.width, h = img.height;
-    const maxDim = 2048;
-    if (w > maxDim || h > maxDim) {
-      const scale = maxDim / Math.max(w, h);
-      w = Math.round(w * scale);
-      h = Math.round(h * scale);
-    }
-    $('#original-img').src = url;
-    $('#preview-area').classList.remove('hidden');
-    $('#main-controls').classList.remove('hidden');
-    const canvas = $('#result-canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0, w, h);
-    originalPixels = ctx.getImageData(0, 0, w, h);
-    const overlay = $('#overlay-canvas');
-    overlay.width = w;
-    overlay.height = h;
-    status('Image loaded (' + w + 'x' + h + '). Tap "Remove BG".', 'info');
-  };
-  img.onerror = () => {
-    URL.revokeObjectURL(url);
-    status('Failed to load image', 'error');
-  };
-  img.src = url;
+  try {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    originalImage = img;
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      const maxDim = 2048;
+      if (w > maxDim || h > maxDim) {
+        const scale = maxDim / Math.max(w, h);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+      }
+      const originalImg = document.getElementById('original-img');
+      originalImg.src = url;
+      originalImg.style.display = 'block';
+      document.getElementById('preview-area').classList.remove('hidden');
+      document.getElementById('main-controls').classList.remove('hidden');
+      const canvas = document.getElementById('result-canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      originalPixels = ctx.getImageData(0, 0, w, h);
+      const overlay = document.getElementById('overlay-canvas');
+      overlay.width = w;
+      overlay.height = h;
+      status('Image loaded (' + w + 'x' + h + '). Tap "Remove BG".', 'info');
+    };
+    img.onerror = () => {
+      // Fallback to FileReader
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+    img.src = url;
+  } catch (err) {
+    status('Error: ' + err.message, 'error');
+  }
 }
 
 $('#btn-remove-bg').addEventListener('click', async () => {
@@ -171,6 +195,7 @@ $('#btn-remove-bg').addEventListener('click', async () => {
   btn.innerHTML = '<span class="spinner"></span>Removing...';
   status('Removing background...', 'info');
   try {
+    const removeBackground = await loadBgRemoval();
     const blob = await removeBackground($('#original-img').src);
     const url = URL.createObjectURL(blob);
     const img = new Image();
