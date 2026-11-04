@@ -117,11 +117,8 @@ const status = (msg, type = 'info') => {
 const uploadZone = $('#upload-zone');
 const fileInput = $('#file-input');
 
-uploadZone.addEventListener('click', (e) => {
-  if (e.target === uploadZone || e.target.tagName === 'P') {
-    fileInput.click();
-  }
-});
+// Label's native for= attribute handles file picker on mobile
+// No click handler needed - prevents double-trigger
 
 fileInput.addEventListener('change', (e) => {
   const file = e.target.files && e.target.files[0];
@@ -133,38 +130,38 @@ function handleFile(file) {
   if (!file) { status('No file selected', 'error'); return; }
   if (!file.type.startsWith('image/')) { status('Select an image file', 'error'); return; }
   status('Loading image...', 'info');
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const img = new Image();
-    originalImage = img;
-    img.onload = () => {
-      // Limit size for mobile performance
-      let w = img.width, h = img.height;
-      const maxDim = 2048;
-      if (w > maxDim || h > maxDim) {
-        const scale = maxDim / Math.max(w, h);
-        w = Math.round(w * scale);
-        h = Math.round(h * scale);
-      }
-      $('#original-img').src = e.target.result;
-      $('#preview-area').classList.remove('hidden');
-      $('#main-controls').classList.remove('hidden');
-      const canvas = $('#result-canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, h);
-      originalPixels = ctx.getImageData(0, 0, w, h);
-      const overlay = $('#overlay-canvas');
-      overlay.width = w;
-      overlay.height = h;
-      status('Image loaded (' + w + 'x' + h + '). Tap "Remove BG".', 'info');
-    };
-    img.onerror = () => status('Failed to load image', 'error');
-    img.src = e.target.result;
+  
+  // Use object URL instead of FileReader for better mobile compatibility
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  originalImage = img;
+  img.onload = () => {
+    let w = img.width, h = img.height;
+    const maxDim = 2048;
+    if (w > maxDim || h > maxDim) {
+      const scale = maxDim / Math.max(w, h);
+      w = Math.round(w * scale);
+      h = Math.round(h * scale);
+    }
+    $('#original-img').src = url;
+    $('#preview-area').classList.remove('hidden');
+    $('#main-controls').classList.remove('hidden');
+    const canvas = $('#result-canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    originalPixels = ctx.getImageData(0, 0, w, h);
+    const overlay = $('#overlay-canvas');
+    overlay.width = w;
+    overlay.height = h;
+    status('Image loaded (' + w + 'x' + h + '). Tap "Remove BG".', 'info');
   };
-  reader.onerror = () => status('Failed to read file', 'error');
-  reader.readAsDataURL(file);
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    status('Failed to load image', 'error');
+  };
+  img.src = url;
 }
 
 $('#btn-remove-bg').addEventListener('click', async () => {
