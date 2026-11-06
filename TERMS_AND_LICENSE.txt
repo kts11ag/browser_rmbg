@@ -1,0 +1,44 @@
+================================================================================
+TERMS OF SALE AND END-USER LICENSE AGREEMENT (EULA)
+================================================================================
+
+Please read this document carefully before purchasing or downloading this software. By purchasing, downloading, or using this HTML file, you ("The Buyer") agree to be bound by the terms of this Agreement.
+
+1. INDEPENDENT DEVELOPER DISCLOSURE
+This software is an independent work created by the Author. The Author is not affiliated with, endorsed by, or partnered with IMG.LY GmbH or the creators of the IS-Net AI model.
+
+2. ONE-TIME TRANSACTION ONLY
+The fee paid by the Buyer is a one-time file transfer fee for the delivery of the HTML source code. This transaction does not constitute a service contract, subscription, or ongoing commercial relationship. The Author has no obligation to provide technical support, bug fixes, updates, or maintenance of any kind.
+
+3. OPEN SOURCE LICENSE & CORE REGULATION (GNU AGPLv3)
+This entire application, including all user interface elements and logic contained within the HTML file, is licensed strictly under the GNU Affero General Public License version 3 (AGPL-3.0). 
+- The complete source code is transparently visible and delivered directly to you inside the HTML file.
+- You have the absolute right to inspect, modify, host, and redistribute this file in accordance with the AGPL-3.0.
+- Third-Party Components: This software dynamically calls the IMG.LY Background Removal SDK and the IS-Net (quantized) AI model via a public Content Delivery Network (CDN). These dependencies are used under their respective open-source AGPL-3.0 terms.
+- Official License Source: The full, verbatim terms and conditions of the governing GNU Affero General Public License can be reviewed at the official GNU repository: https://gnu.org
+
+4. MAXIMUM LEGAL DISCLAIMER & WARRANTY ("AS IS")
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THIS SOFTWARE IS PROVIDED "AS IS" AND "WITH ALL FAULTS," WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED. 
+
+THE AUTHOR EXPRESSLY DISCLAIMS ALL WARRANTIES, INCLUDING BUT NOT LIMITED TO:
+- ANY IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+- ANY WARRANTY THAT THE SOFTWARE WILL OPERATE UNINTERRUPTED, ERROR-FREE, OR COMPATIBLE WITH YOUR SYSTEMS.
+- ANY WARRANTY REGARDING THE ACCURACY, AVAILABILITY, OR PERSISTENCE OF THIRD-PARTY CDN DEPENDENCIES. 
+- THE BUYER EXPRESSLY ACKNOWLEDGES THAT THE APP REQUIRES AN INTERNET CONNECTION ON FIRST USE TO DOWNLOAD APPROXIMATELY 40–45 MB OF MODEL AND RUNTIME DATA. THE AUTHOR MAKES NO WARRANTY THAT THE USER'S BROWSER WILL SUCCESSFULLY RETAIN THIS CACHE FOR OFFLINE REUSE. IF THE BROWSER CLEARS ITS CACHE, A REDOWNLOAD WILL BE REQUIRED, AND THE AUTHOR IS NOT LIABLE FOR ANY LOSS OF OFFLINE FUNCTIONALITY OR DATA CHARGES INCURRED.
+
+THE ENTIRE RISK AS TO THE QUALITY, PERFORMANCE, AND USE OF THE PROGRAM IS SOLELY WITH THE BUYER.
+
+5. TOTAL LIMITATION OF LIABILITY & INDEMNITY
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE AUTHOR BE LIABLE TO THE BUYER OR ANY THIRD PARTY FOR ANY DAMAGES WHATSOEVER ARISING OUT OF THE USE OF OR INABILITY TO USE THIS SOFTWARE. 
+
+THIS INCLUDES, WITHOUT LIMITATION:
+- DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES.
+- LOSS OF PROFITS, LOSS OF REVENUE, OR LOSS OF BUSINESS SAVINGS.
+- LOSS OF DATA, CORRUPTION OF DATA, OR DAMAGE CAUSED BY CACHE ACCUMULATION IN BROWSER STORAGE.
+- BROWSER CRASHES, CPU OVERHEATING, SYSTEM SLOWDOWNS, OR HARDWARE DAMAGES RESULTING FROM RUNNING THE AI MODEL LOCALLY.
+- FINANCIAL LOSSES ARISING FROM THIRD-PARTY INTELLECTUAL PROPERTY CLAIMS REGARDING THE CDN DEPENDENCIES OR IS-NET MODEL.
+
+BY COMPLETING THIS PURCHASE, THE BUYER EXPLICITLY WAIVES THE RIGHT TO SUE THE AUTHOR AND AGREES TO FULLY INDEMNIFY AND HOLD HARMLESS THE AUTHOR FROM ANY AND ALL CLAIMS, LAWSUITS, OR FINANCIAL DEMANDS ARISING FROM THE BUYER'S USE, HOSTING, OR REDISTRIBUTION OF THE SOFTWARE.
+
+6. SEVERABILITY
+If any provision of this Agreement or its warranty disclaimers is found by a court of competent jurisdiction to be invalid or unenforceable under local law, that specific provision shall be limited or eliminated to the minimum extent necessary, and the remaining provisions of this Agreement shall remain in full force and effect to give the Author the maximum legal protection allowed by law.

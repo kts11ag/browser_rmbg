@@ -1,0 +1,1958 @@
+<!--
+================================================================================
+APPLICATION HEADER & LICENSE NOTICE
+================================================================================
+Application Name: BG Remover Studio — AI Background Removal
+Copyright (C) 2026 ZENBLIV. All rights reserved. Distributed under the GNU AGPLv3.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+The full, verbatim terms and conditions of the governing license 
+can be reviewed at the official GNU repository: 
+https://gnu.org
+
+--------------------------------------------------------------------------------
+THIRD-PARTY OPEN SOURCE COMPONENTS DISCLOSURE
+--------------------------------------------------------------------------------
+This single-file HTML application dynamically loads and executes third-party 
+software libraries and data models via public Content Delivery Networks (CDNs) 
+directly within the user's browser environment:
+
+1. AI Runtime: IMG.LY Background Removal SDK
+   - License: GNU Affero General Public License v3 (AGPL-3.0)
+   - Scope: Client-side UI orchestration and image processing engine.
+
+2. AI Model: IS-Net (Quantized CPU Model)
+   - License: GNU Affero General Public License v3 (AGPL-3.0)
+   - Scope: Automated foreground subject detection weights (~40–45 MB).
+
+By utilizing this application, the user acknowledges that these dependencies 
+are fetched externally upon first execution, processed locally on the host CPU, 
+and are governed entirely by their respective upstream open-source licenses.
+
+--------------------------------------------------------------------------------
+WARRANTY & LIABILITY DISCLAIMER ("AS IS")
+--------------------------------------------------------------------------------
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THIS ENTIRE APPLICATION AND 
+ITS CODE SECTIONS ARE PROVIDED "AS IS" AND "WITH ALL FAULTS" WITHOUT WARRANTY 
+OF ANY KIND. THE AUTHOR EXPRESSLY DISCLAIMS ALL IMPLIED WARRANTIES OF 
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+THE AUTHOR MAKES NO WARRANTY REGARDING THE PERMANENCE, SPEED, OR FUTURE AVAILABILITY 
+OF THE ACCESSED CDN ENDPOINTS. BROWSER STORAGE EVICTION OF CACHED MODEL DATA IS THE 
+SOLE OPERATIONAL RISK OF THE END USER. THE AUTHOR ACCEPTS ZERO LIABILITY FOR ANY 
+DATA CHARGES, CPU OVERHEATING, SYSTEM SLOWDOWNS, CORRUPTION OF DATA, OR LOSS 
+OF FUNCTIONALITY.
+================================================================================
+-->
+
+
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BG Remover Studio — AI Background Removal</title>
+
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#101319;
+  --panel:#191f29;
+  --panel2:#222b38;
+  --line:#303b4a;
+  --text:#f2f5fa;
+  --muted:#a5b0c0;
+  --accent:#7595ff;
+  --accent2:#4c6fe0;
+  --green:#5ed6a0;
+  --red:#ff8888
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif
+}
+
+button,input,select{font:inherit}
+
+button{
+  border:1px solid var(--line);
+  background:var(--panel2);
+  color:var(--text);
+  padding:9px 12px;
+  border-radius:9px;
+  cursor:pointer;
+  transition:.15s
+}
+
+button:hover:not(:disabled){
+  border-color:#60728d;
+  background:#2a3545
+}
+
+button:disabled{opacity:.4;cursor:not-allowed}
+
+button.primary{
+  background:var(--accent2);
+  border-color:var(--accent2);
+  color:white;
+  font-weight:700
+}
+
+button.primary:hover:not(:disabled){background:#6383ef}
+button.active{background:#293858;border-color:var(--accent);color:#e3eaff}
+button.danger{color:#ffd2d2}
+
+.app{max-width:1500px;margin:auto;padding:20px}
+
+.header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:18px
+}
+
+.brand{display:flex;align-items:center;gap:12px}
+
+.logo{
+  height:40px;
+  width:40px;
+  display:grid;
+  place-items:center;
+  border-radius:12px;
+  background:linear-gradient(140deg,#83a0ff,#526bd3);
+  font-weight:900;
+  font-size:16px
+}
+
+.brand h1{font-size:20px;margin:0;letter-spacing:-.4px}
+.sub{font-size:12px;color:var(--muted)}
+
+.local-pill{
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.5px;
+  color:#bdf7dc;
+  background:#15382b;
+  border:1px solid #2a654c;
+  border-radius:50px;
+  padding:6px 10px;
+  white-space:nowrap
+}
+
+.layout{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 320px;
+  gap:16px;
+  align-items:start
+}
+
+.panel{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:14px;
+  overflow:hidden
+}
+
+.topbar{
+  padding:11px 13px;
+  border-bottom:1px solid var(--line);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap
+}
+
+.toolbar{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.toolbar button{font-size:12px;padding:7px 10px}
+
+.stage{
+  height:min(72vh,790px);
+  min-height:430px;
+  overflow:auto;
+  display:grid;
+  place-items:center;
+  padding:24px;
+  background-color:#171c25;
+  background-image:radial-gradient(#29313e 1px,transparent 1px);
+  background-size:18px 18px
+}
+
+.empty{
+  width:min(520px,100%);
+  border:1px dashed #526078;
+  background:#1b222d;
+  border-radius:17px;
+  text-align:center;
+  padding:40px 25px
+}
+
+.empty .glyph{font-size:42px;margin-bottom:10px}
+.empty h2{margin:0 0 6px;font-size:20px}
+.empty p{color:var(--muted);margin:0 0 18px}
+.small{font-size:11px;color:#8995a7}
+
+.canvas-wrap{
+  display:none;
+  position:relative;
+  line-height:0;
+  box-shadow:0 9px 30px #0008;
+  background-color:white;
+  background-image:
+    linear-gradient(45deg,#cfd4dc 25%,transparent 25%),
+    linear-gradient(-45deg,#cfd4dc 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,#cfd4dc 75%),
+    linear-gradient(-45deg,transparent 75%,#cfd4dc 75%);
+  background-size:20px 20px;
+  background-position:0 0,0 10px,10px -10px,-10px 0
+}
+
+.canvas-wrap.white{background:#fff;background-image:none}
+.canvas-wrap.dark{background:#17191f;background-image:none}
+.canvas-wrap.gray{background:#858b96;background-image:none}
+.canvas-wrap.magenta{background:#ff00cc;background-image:none}
+.canvas-wrap.green{background:#00b84a;background-image:none}
+.canvas-wrap.blue{background:#087de0;background-image:none}
+.canvas-wrap.black{background:#050505;background-image:none}
+
+canvas{
+  display:block;
+  max-width:none;
+  cursor:default;
+  touch-action:none
+}
+
+/* Circular brush cursor */
+#brushCursor{
+  position:absolute;
+  display:none;
+  pointer-events:none;
+  z-index:10;
+  width:42px;
+  height:42px;
+  border:2px solid white;
+  border-radius:50%;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.9),
+    inset 0 0 0 1px rgba(0,0,0,.2);
+  transform:translate(-50%,-50%);
+  background:rgba(255,255,255,.04)
+}
+
+canvas.brush-active{cursor:none!important}
+
+canvas.pan{cursor:grab}
+canvas.pan:active{cursor:grabbing}
+
+.bottom{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:10px 13px;
+  border-top:1px solid var(--line);
+  color:var(--muted);
+  font-size:11px
+}
+
+.side{padding:15px}
+
+.section{
+  padding:0 0 15px;
+  margin:0 0 15px;
+  border-bottom:1px solid var(--line)
+}
+
+.section:last-child{padding:0;margin:0;border:0}
+.section h3{font-size:13px;margin:0 0 10px}
+
+.field{margin:11px 0}
+
+.fieldhead{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:5px;
+  font-size:12px;
+  color:#dce3ee
+}
+
+.fieldhead output{
+  color:#bfd0ff;
+  font-variant-numeric:tabular-nums
+}
+
+input[type=range]{width:100%;accent-color:var(--accent)}
+
+.row{display:flex;gap:7px}
+.row>*{flex:1}
+
+.toolgrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px
+}
+
+.toolgrid button{font-size:12px}
+.toolgrid button span{display:block;font-size:18px;margin-bottom:3px}
+.full{width:100%}
+
+.primary-ai{
+  width:100%;
+  padding:12px;
+  font-size:14px
+}
+
+.note{
+  padding:10px;
+  border:1px solid #3b4658;
+  background:#222b38;
+  border-radius:10px;
+  font-size:11px;
+  color:#bfcbdb
+}
+
+.note strong{color:#fff}
+
+.status{
+  font-size:11px;
+  color:#b5c2d5;
+  min-height:18px;
+  margin-top:9px
+}
+
+.progress{
+  height:7px;
+  background:#303947;
+  border-radius:99px;
+  overflow:hidden;
+  margin-top:8px
+}
+
+.progress>div{
+  height:100%;
+  width:0;
+  background:linear-gradient(90deg,#6484f2,#66d2a5);
+  transition:width .18s
+}
+
+.hidden{display:none!important}
+#fileInput{display:none}
+
+.seg{
+  font-size:11px;
+  color:var(--muted);
+  display:flex;
+  gap:6px;
+  align-items:center;
+  justify-content:space-between
+}
+
+.seg select{
+  background:var(--panel2);
+  color:var(--text);
+  border:1px solid var(--line);
+  border-radius:7px;
+  padding:6px;
+  flex:1;
+  max-width:190px
+}
+
+/* Custom colour picker */
+.custom-color-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:10px
+}
+
+.custom-color-row input[type=color]{
+  width:48px;
+  height:30px;
+  padding:2px;
+  background:var(--panel2);
+  border:1px solid var(--line);
+  border-radius:7px;
+  cursor:pointer
+}
+
+.foot{
+  font-size:10px;
+  color:#8591a3;
+  line-height:1.5
+}
+
+a{color:#a9bdff}
+
+@media(max-width:940px){
+  .layout{grid-template-columns:1fr}
+  .side{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:15px
+  }
+  .section{margin:0;padding:0;border:0}
+  .stage{height:60vh}
+}
+
+@media(max-width:620px){
+  .app{padding:11px}
+  .header{align-items:flex-start}
+  .brand h1{font-size:17px}
+  .local-pill{font-size:9px}
+  .side{display:block}
+  .section{
+    padding-bottom:13px;
+    margin-bottom:13px;
+    border-bottom:1px solid var(--line)
+  }
+  .stage{min-height:310px;height:53vh;padding:12px}
+}
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "onnxruntime-web": "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.min.mjs"
+  }
+}
+</script>
+</head>
+
+<body>
+
+<div class="app">
+
+<header class="header">
+  <div class="brand">
+    <div class="logo">BG</div>
+    <div>
+      <h1>BG Remover Studio</h1>
+      <div class="sub">AI subject detection · CPU mode · local photo editing</div>
+    </div>
+  </div>
+  <div class="local-pill">● PHOTO STAYS ON THIS PC</div>
+</header>
+
+<main class="layout">
+
+<section class="panel">
+
+  <div class="topbar">
+    <div class="toolbar">
+      <button id="uploadBtn" class="primary">＋ Upload photo</button>
+      <button id="undoBtn" disabled>↶ Undo</button>
+      <button id="redoBtn" disabled>↷ Redo</button>
+      <button id="compareBtn" disabled>◉ Original</button>
+    </div>
+
+    <div class="toolbar">
+      <button id="zoomOut" disabled>−</button>
+      <button id="fit" disabled>Fit</button>
+      <button id="zoomIn" disabled>＋</button>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+
+    <div class="empty" id="empty">
+      <div class="glyph">✂</div>
+      <h2>Detect the subject automatically</h2>
+      <p>Upload a product, person, pet or other photo. AI will identify the main foreground subject and create a transparent cutout.</p>
+      <button id="emptyUpload" class="primary">Choose a photo</button>
+      <div class="small" style="margin-top:12px">JPG · PNG · WEBP</div>
+    </div>
+
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="canvas"></canvas>
+      <div id="brushCursor"></div>
+    </div>
+
+  </div>
+
+  <div class="bottom">
+    <span id="imageInfo">No image loaded</span>
+    <span id="toolInfo">Ready for a photo</span>
+  </div>
+
+</section>
+
+<aside class="panel side">
+
+  <section class="section">
+    <h3>1. AI background removal</h3>
+
+    <button id="removeBtn" class="primary primary-ai" disabled>
+      ✦ Detect subject &amp; remove background
+    </button>
+
+    <div class="progress">
+      <div id="progressBar"></div>
+    </div>
+
+    <div class="status" id="status" role="status" aria-live="polite">
+      Upload a photo to begin.
+    </div>
+
+    <div class="note" style="margin-top:10px">
+      <strong>CPU AI model: IS-Net (quantized)</strong><br>
+      About 40–45 MB of model data, plus browser runtime files.
+      Designed for CPU/WebAssembly; no dedicated GPU required.
+      First use needs internet to obtain the AI engine and model.
+      Your photograph is processed locally and is not sent to a server.
+    </div>
+  </section>
+
+  <section class="section">
+    <h3>2. Manual touch-up</h3>
+
+    <div class="toolgrid">
+      <button id="eraseBtn" disabled>
+        <span>◩</span>Erase
+      </button>
+      <button id="restoreBtn" disabled>
+        <span>◧</span>Restore
+      </button>
+    </div>
+
+    <div class="field">
+      <div class="fieldhead">
+        <label for="brush">Brush size</label>
+        <output id="brushVal">42 px</output>
+      </div>
+      <input id="brush" type="range" min="4" max="240" value="42" disabled>
+    </div>
+
+    <div class="field">
+      <div class="fieldhead">
+        <label for="hardness">Brush hardness</label>
+        <output id="hardnessVal">85%</output>
+      </div>
+      <input id="hardness" type="range" min="0" max="100" value="85" disabled>
+    </div>
+
+    <div class="small">
+      Drag on the image to remove leftover background or bring back parts of the subject.
+    </div>
+  </section>
+
+  <section class="section">
+    <h3>3. View &amp; refine</h3>
+
+    <!-- Preview background dropdown -->
+    <div class="seg">
+      <label for="previewBg">Preview background</label>
+
+      <select id="previewBg">
+        <option value="check">Checkerboard</option>
+        <option value="white">White</option>
+        <option value="black">Black</option>
+        <option value="gray">Grey</option>
+        <option value="magenta" selected>Magenta</option>
+        <option value="green">Green</option>
+        <option value="blue">Blue</option>
+        <option value="custom">Custom colour...</option>
+      </select>
+    </div>
+
+    <!-- Custom colour picker: only visible when selected -->
+    <div id="customColorRow" class="custom-color-row hidden">
+      <label for="customBg" class="small">Choose custom colour</label>
+      <input
+        id="customBg"
+        type="color"
+        value="#ff00cc"
+        title="Choose preview background colour"
+      >
+    </div>
+
+    <div class="small" style="margin-top:7px">
+      Custom colour is displayed only when selected in Preview background.
+      The colour appears through transparent areas and does not change the original photo.
+    </div>
+
+    <div class="toolgrid" style="margin-top:12px">
+      <button id="inspectBtn" disabled>◉ Inspect leftovers</button>
+      <button id="maskBtn" disabled>▦ Show mask</button>
+    </div>
+
+    <div class="small" style="margin-top:7px">
+      Inspect on contrasting backgrounds. Mask view shows retained (white) and removed (black) areas.
+    </div>
+
+    <div class="field">
+      <div class="fieldhead">
+        <label for="zoomRange">Zoom</label>
+        <output id="zoomVal">100%</output>
+      </div>
+      <input id="zoomRange" type="range" min="10" max="400" value="100" disabled>
+    </div>
+
+    <div class="row">
+      <button id="resetBtn" disabled>Reset mask</button>
+      <button id="clearBtn" class="danger" disabled>Clear subject</button>
+    </div>
+  </section>
+
+  <section class="section">
+    <h3>4. Export</h3>
+
+    <button id="preExportBtn" class="full" disabled>
+      ✓ Before export inspection
+    </button>
+
+    <button id="exportBtn" class="primary full" disabled style="margin-top:7px">
+      ↓ Download transparent PNG
+    </button>
+
+    <div class="small" style="margin-top:7px">
+      PNG keeps transparency and original photo dimensions.
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="foot">
+      Privacy: image pixels stay on your computer.
+      The app contacts the software/model CDN to load the AI engine on first use.
+      It attempts to cache the model in browser storage; offline reuse depends on the browser retaining that cache.
+      Clearing browser data may require another download.
+      AI runtime: IMG.LY Background Removal (AGPL-3.0); model: IS-Net quantized.
+    </div>
+  </section>
+
+</aside>
+</main>
+</div>
+
+<input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp">
+
+<script type="module">
+(() => {
+'use strict';
+
+const $ = id => document.getElementById(id);
+
+const canvas = $('canvas');
+const ctx = canvas.getContext('2d',{willReadFrequently:true});
+
+const fileInput = $('fileInput');
+const stage = $('stage');
+const wrap = $('canvasWrap');
+const brushCursor = $('brushCursor');
+
+const DATA_BASE =
+'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/';
+
+const MODULE_URL =
+'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/dist/index.mjs';
+
+const CACHE_NAME = 'bg-remover-ai-assets-v1';
+
+const CONFIG = {
+  device:'cpu',
+  model:'isnet_quint8',
+  rescale:true,
+  proxyToWorker:false,
+  output:{format:'image/png',quality:1},
+  progress:(key,current,total)=>
+    onModelProgress(key,current,total)
+};
+
+// Store model/WASM chunks explicitly where Cache Storage is available.
+
+const nativeFetch = window.fetch.bind(window);
+
+window.fetch = async function(input,init) {
+
+  const url = typeof input === 'string'
+    ? input
+    : (input && input.url) || '';
+
+  const method = (init && init.method) ||
+    (input instanceof Request ? input.method : 'GET');
+
+  if (!url.startsWith(DATA_BASE) ||
+      method.toUpperCase() !== 'GET') {
+    return nativeFetch(input,init);
+  }
+
+  let cache = null;
+
+  try {
+    if ('caches' in window)
+      cache = await caches.open(CACHE_NAME);
+  } catch (_) {}
+
+  const key = new Request(url,{method:'GET'});
+
+  if (cache) {
+    try {
+      const hit = await cache.match(key);
+      if (hit) return hit;
+    } catch (_) {}
+  }
+
+  const response = await nativeFetch(input,init);
+
+  if (cache && response.ok && response.type !== 'opaque') {
+    try {
+      await cache.put(key,response.clone());
+    } catch (_) {}
+  }
+
+  return response;
+};
+
+
+let imageFile = null;
+let originalPixels = null;
+let alphaMask = null;
+
+let w = 0;
+let h = 0;
+
+let fileBaseName = 'image';
+let tool = 'none';
+
+let isDrawing = false;
+let lastPoint = null;
+
+let zoom = 1;
+
+let showingOriginal = false;
+let showingMask = false;
+let inspectionMode = false;
+let aiProcessed = false;
+let busy = false;
+let enginePromise = null;
+
+let undoStack = [];
+let redoStack = [];
+
+const HISTORY_LIMIT = 9;
+
+
+function setStatus(msg) {
+  $('status').textContent = msg;
+}
+
+function setProgress(pct) {
+  $('progressBar').style.width =
+    Math.max(0,Math.min(100,pct))+'%';
+}
+
+function setBusy(v) {
+
+  busy = v;
+
+  $('removeBtn').disabled = v || !imageFile;
+
+  $('removeBtn').textContent = v
+    ? 'Processing AI cutout…'
+    : '✦ Detect subject & remove background';
+
+  for (const id of [
+    'uploadBtn','emptyUpload','eraseBtn','restoreBtn',
+    'brush','hardness','resetBtn','clearBtn',
+    'exportBtn','preExportBtn','compareBtn',
+    'zoomIn','zoomOut','fit','zoomRange',
+    'inspectBtn','maskBtn'
+  ]) {
+    $(id).disabled = v || !imageFile;
+  }
+
+  $('inspectBtn').disabled =
+    v || !imageFile || !aiProcessed;
+
+  $('maskBtn').disabled =
+    v || !imageFile || !aiProcessed;
+
+  $('preExportBtn').disabled =
+    v || !imageFile || !aiProcessed;
+
+  updateHistoryButtons();
+}
+
+
+function onModelProgress(key,current,total) {
+
+  if (key.startsWith('fetch:')) {
+
+    const percent = total
+      ? Math.round(current/total*100)
+      : 0;
+
+    const name = key.includes('models')
+      ? 'AI model'
+      : 'AI runtime';
+
+    setProgress(percent);
+
+    setStatus(
+      `Downloading ${name}: ${formatBytes(current)} / ${formatBytes(total)} (${percent}%)`
+    );
+
+  } else if (key.startsWith('compute:')) {
+
+    const steps = {
+      'compute:decode':8,
+      'compute:inference':20,
+      'compute:mask':88,
+      'compute:encode':96
+    };
+
+    setProgress(steps[key] || 10);
+
+    const labels = {
+      'compute:decode':'Preparing photo…',
+      'compute:inference':'AI is identifying the main subject…',
+      'compute:mask':'Building transparent edges…',
+      'compute:encode':'Finishing cutout…'
+    };
+
+    setStatus(labels[key] || 'Processing photo…');
+  }
+}
+
+
+function formatBytes(bytes) {
+
+  if (!Number.isFinite(bytes)) return '';
+
+  const units = ['B','KB','MB','GB'];
+
+  let n = bytes;
+  let i = 0;
+
+  while (n >= 1024 && i < units.length-1) {
+    n /= 1024;
+    i++;
+  }
+
+  return `${n.toFixed(i?1:0)} ${units[i]}`;
+}
+
+
+function updateHistoryButtons() {
+
+  $('undoBtn').disabled =
+    busy || !alphaMask || !undoStack.length;
+
+  $('redoBtn').disabled =
+    busy || !alphaMask || !redoStack.length;
+}
+
+
+function saveHistory() {
+
+  if (!alphaMask) return;
+
+  undoStack.push(new Uint8Array(alphaMask));
+
+  if (undoStack.length > HISTORY_LIMIT)
+    undoStack.shift();
+
+  redoStack = [];
+
+  updateHistoryButtons();
+}
+
+
+function undo() {
+
+  if (!undoStack.length || !alphaMask || busy)
+    return;
+
+  redoStack.push(new Uint8Array(alphaMask));
+
+  alphaMask = undoStack.pop();
+
+  render();
+  updateHistoryButtons();
+
+  setStatus('Undo applied.');
+}
+
+
+function redo() {
+
+  if (!redoStack.length || !alphaMask || busy)
+    return;
+
+  undoStack.push(new Uint8Array(alphaMask));
+
+  alphaMask = redoStack.pop();
+
+  render();
+  updateHistoryButtons();
+
+  setStatus('Redo applied.');
+}
+
+
+function render() {
+
+  if (!originalPixels || !alphaMask) return;
+
+  const out = ctx.createImageData(w,h);
+
+  const src = originalPixels.data;
+  const dst = out.data;
+
+  if (showingMask) {
+
+    for (let p=0,i=0;p<alphaMask.length;p++,i+=4) {
+
+      const v = alphaMask[p];
+
+      dst[i] = v;
+      dst[i+1] = v;
+      dst[i+2] = v;
+      dst[i+3] = 255;
+    }
+
+  } else if (showingOriginal) {
+
+    dst.set(src);
+
+  } else {
+
+    for (let p=0,i=0;p<alphaMask.length;p++,i+=4) {
+
+      dst[i] = src[i];
+      dst[i+1] = src[i+1];
+      dst[i+2] = src[i+2];
+
+      dst[i+3] =
+        Math.round(src[i+3]*alphaMask[p]/255);
+    }
+  }
+
+  ctx.putImageData(out,0,0);
+}
+
+
+function updateZoom(z) {
+
+  zoom = Math.max(.1,Math.min(4,z));
+
+  $('zoomRange').value = Math.round(zoom*100);
+
+  $('zoomVal').textContent =
+    Math.round(zoom*100)+'%';
+
+  if (w) {
+
+    canvas.style.width =
+      Math.round(w*zoom)+'px';
+
+    canvas.style.height =
+      Math.round(h*zoom)+'px';
+  }
+
+  updateBrushCursorSize();
+}
+
+
+function fitZoom() {
+
+  if (!w) return;
+
+  const aw = Math.max(150,stage.clientWidth-54);
+  const ah = Math.max(150,stage.clientHeight-54);
+
+  updateZoom(Math.min(1,aw/w,ah/h));
+}
+
+
+// ======================================
+// CIRCULAR BRUSH CURSOR
+// ======================================
+
+// The cursor diameter follows the brush slider
+// and automatically adjusts to the current zoom.
+
+function updateBrushCursorSize() {
+
+  if (!w || !h) return;
+
+  const displayedWidth = canvas.getBoundingClientRect().width;
+
+  const scale = displayedWidth / w;
+
+  const diameter =
+    Number($('brush').value) * scale;
+
+  brushCursor.style.width = diameter+'px';
+  brushCursor.style.height = diameter+'px';
+}
+
+
+function showBrushCursor(e) {
+
+  if (
+    !imageFile ||
+    busy ||
+    showingOriginal ||
+    showingMask ||
+    !['erase','restore'].includes(tool)
+  ) {
+    hideBrushCursor();
+    return;
+  }
+
+  const rect = canvas.getBoundingClientRect();
+
+  // Keep cursor aligned with the actual image.
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  brushCursor.style.left = x+'px';
+  brushCursor.style.top = y+'px';
+
+  updateBrushCursorSize();
+
+  brushCursor.style.display = 'block';
+}
+
+
+function hideBrushCursor() {
+  brushCursor.style.display = 'none';
+}
+
+
+function setTool(t) {
+
+  if (showingMask) {
+
+    showingMask = false;
+
+    $('maskBtn').classList.remove('active');
+
+    render();
+  }
+
+  tool = t;
+
+  $('eraseBtn').classList.toggle('active',t==='erase');
+  $('restoreBtn').classList.toggle('active',t==='restore');
+
+  canvas.classList.toggle(
+    'brush-active',
+    t==='erase' || t==='restore'
+  );
+
+  canvas.classList.toggle('pan',t==='pan');
+
+  if (t==='erase' || t==='restore') {
+    updateBrushCursorSize();
+  } else {
+    hideBrushCursor();
+  }
+
+  $('toolInfo').textContent =
+    t==='erase'
+      ? 'Erase brush active'
+      : t==='restore'
+        ? 'Restore brush active'
+        : 'AI mask ready for touch-up';
+}
+
+
+function canvasPoint(e) {
+
+  const r = canvas.getBoundingClientRect();
+
+  return {
+    x:Math.max(0,Math.min(w-1,(e.clientX-r.left)*w/r.width)),
+    y:Math.max(0,Math.min(h-1,(e.clientY-r.top)*h/r.height))
+  };
+}
+
+
+function brushAt(p) {
+
+  const radius = Number($('brush').value)/2;
+
+  const hardness =
+    Number($('hardness').value)/100;
+
+  const inner = radius*hardness;
+
+  const x0 = Math.max(0,Math.floor(p.x-radius));
+  const x1 = Math.min(w-1,Math.ceil(p.x+radius));
+
+  const y0 = Math.max(0,Math.floor(p.y-radius));
+  const y1 = Math.min(h-1,Math.ceil(p.y+radius));
+
+  for (let y=y0;y<=y1;y++) {
+
+    for (let x=x0;x<=x1;x++) {
+
+      const d = Math.hypot(x-p.x,y-p.y);
+
+      if (d>radius) continue;
+
+      let coverage =
+        d<=inner || hardness>=.999
+          ? 1
+          : 1-(d-inner)/Math.max(1,radius-inner);
+
+      coverage = Math.max(0,Math.min(1,coverage));
+
+      const idx = y*w+x;
+
+      if (tool==='erase') {
+
+        alphaMask[idx] =
+          Math.round(alphaMask[idx]*(1-coverage));
+
+      } else {
+
+        alphaMask[idx] =
+          Math.round(
+            alphaMask[idx]+(255-alphaMask[idx])*coverage
+          );
+      }
+    }
+  }
+}
+
+
+function brushLine(a,b) {
+
+  const dx = b.x-a.x;
+  const dy = b.y-a.y;
+
+  const d = Math.hypot(dx,dy);
+
+  const step =
+    Math.max(1,Number($('brush').value)*.16);
+
+  const n = Math.ceil(d/step);
+
+  for (let i=1;i<=n;i++) {
+
+    const t = i/n;
+
+    brushAt({
+      x:a.x+dx*t,
+      y:a.y+dy*t
+    });
+  }
+}
+
+
+// ======================================
+// AI ENGINE
+// ======================================
+
+async function ensureEngine() {
+
+  if (enginePromise) return enginePromise;
+
+  enginePromise = (async () => {
+
+    setStatus('Loading browser AI engine…');
+
+    const mod = await import(MODULE_URL);
+
+    if (!mod || typeof mod.removeBackground !== 'function') {
+      throw new Error(
+        'The AI background-removal module did not load correctly.'
+      );
+    }
+
+    return mod.removeBackground;
+
+  })().catch(err => {
+
+    enginePromise = null;
+
+    throw err;
+  });
+
+  return enginePromise;
+}
+
+
+async function removeBackgroundAI() {
+
+  if (!imageFile || busy) return;
+
+  if (w*h > 32000000) {
+
+    setStatus(
+      'This photo is very large. Please resize it to 32 megapixels or below to avoid running out of memory.'
+    );
+
+    return;
+  }
+
+  setBusy(true);
+  setProgress(2);
+
+  try {
+
+    const removeBackground = await ensureEngine();
+
+    setStatus(
+      'Starting CPU AI model. The first run downloads the model and runtime files (about 50–60 MB).'
+    );
+
+    const resultBlob =
+      await removeBackground(imageFile,CONFIG);
+
+    setStatus(
+      'AI has detected the foreground. Applying the mask…'
+    );
+
+    setProgress(96);
+
+    const bitmap = await createImageBitmap(resultBlob);
+
+    const temp = document.createElement('canvas');
+
+    temp.width = w;
+    temp.height = h;
+
+    const tctx = temp.getContext(
+      '2d',
+      {willReadFrequently:true}
+    );
+
+    tctx.drawImage(bitmap,0,0,w,h);
+
+    bitmap.close?.();
+
+    const cutout =
+      tctx.getImageData(0,0,w,h).data;
+
+    const nextMask = new Uint8Array(w*h);
+
+    for (let p=0,i=3;p<nextMask.length;p++,i+=4) {
+      nextMask[p] = cutout[i];
+    }
+
+    saveHistory();
+
+    alphaMask = nextMask;
+
+    aiProcessed = true;
+
+    showingOriginal = false;
+    showingMask = false;
+
+    $('maskBtn').classList.remove('active');
+
+    render();
+
+    setProgress(100);
+
+    setStatus(
+      'Background removed. Refine any missed areas with Erase and Restore.'
+    );
+
+    $('compareBtn').textContent = '◉ Original';
+
+  } catch (err) {
+
+    console.error(err);
+
+    setProgress(0);
+
+    const message = String(err && err.message || err);
+
+    if (/fetch|network|cors|load|import|module/i.test(message)) {
+
+      setStatus(
+        'Could not load the AI engine/model. Check the internet connection and try again. Your photo was not uploaded. Details: '+message.slice(0,180)
+      );
+
+    } else {
+
+      setStatus(
+        'AI processing failed: '+message.slice(0,220)
+      );
+    }
+
+  } finally {
+
+    setBusy(false);
+  }
+}
+
+
+// ======================================
+// LOAD IMAGE
+// ======================================
+
+async function loadImage(file) {
+
+  if (!file) return;
+
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+
+    setStatus('Please choose a JPG, PNG or WEBP image.');
+
+    return;
+  }
+
+  try {
+
+    const bitmap = await createImageBitmap(file);
+
+    w = bitmap.width;
+    h = bitmap.height;
+
+    if (w*h > 40000000) {
+
+      bitmap.close?.();
+
+      setStatus(
+        'Photo exceeds 40 megapixels. Please use a smaller copy.'
+      );
+
+      return;
+    }
+
+    canvas.width = w;
+    canvas.height = h;
+
+    ctx.drawImage(bitmap,0,0);
+
+    bitmap.close?.();
+
+    originalPixels =
+      ctx.getImageData(0,0,w,h);
+
+    alphaMask = new Uint8Array(w*h);
+
+    alphaMask.fill(255);
+
+    imageFile = file;
+
+    fileBaseName =
+      (file.name||'image').replace(/\.[^.]+$/,'')||'image';
+
+    undoStack = [];
+    redoStack = [];
+
+    aiProcessed = false;
+    showingOriginal = false;
+
+    $('empty').classList.add('hidden');
+
+    wrap.style.display = 'block';
+
+    $('imageInfo').textContent =
+      `${w.toLocaleString()} × ${h.toLocaleString()} px · ${file.name}`;
+
+    $('compareBtn').textContent = '◉ Original';
+
+    showingMask = false;
+    inspectionMode = false;
+
+    $('maskBtn').classList.remove('active');
+    $('inspectBtn').classList.remove('active');
+
+    setTool('none');
+
+    hideBrushCursor();
+
+    render();
+
+    setBusy(false);
+
+    fitZoom();
+
+    setStatus(
+      'Photo loaded. Select “Detect subject & remove background” to run AI segmentation.'
+    );
+
+    setProgress(0);
+
+  } catch(e) {
+
+    console.error(e);
+
+    setStatus(
+      'Could not read this photo. Try a different image or smaller file.'
+    );
+  }
+}
+
+
+// ======================================
+// PNG EXPORT
+// ======================================
+
+function downloadPng() {
+
+  if (!alphaMask) return;
+
+  if (showingMask) {
+
+    showingMask = false;
+
+    $('maskBtn').classList.remove('active');
+
+    render();
+  }
+
+  const out = document.createElement('canvas');
+
+  out.width = w;
+  out.height = h;
+
+  const octx = out.getContext('2d');
+
+  const im = octx.createImageData(w,h);
+
+  const s = originalPixels.data;
+  const d = im.data;
+
+  for (let p=0,i=0;p<alphaMask.length;p++,i+=4) {
+
+    d[i] = s[i];
+    d[i+1] = s[i+1];
+    d[i+2] = s[i+2];
+
+    d[i+3] =
+      Math.round(s[i+3]*alphaMask[p]/255);
+  }
+
+  octx.putImageData(im,0,0);
+
+  out.toBlob(blob => {
+
+    if (!blob) {
+
+      setStatus('Could not export PNG.');
+
+      return;
+    }
+
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+
+    a.href = url;
+
+    a.download =
+      fileBaseName+'-background-removed.png';
+
+    document.body.appendChild(a);
+
+    a.click();
+
+    a.remove();
+
+    setTimeout(
+      () => URL.revokeObjectURL(url),
+      1500
+    );
+
+    setStatus('Transparent PNG downloaded.');
+
+  },'image/png');
+}
+
+
+// ======================================
+// BUTTON EVENTS
+// ======================================
+
+$('uploadBtn').onclick =
+  () => $('fileInput').click();
+
+$('emptyUpload').onclick =
+  () => $('fileInput').click();
+
+fileInput.onchange = e => {
+
+  loadImage(e.target.files[0]);
+
+  e.target.value = '';
+};
+
+$('removeBtn').onclick = removeBackgroundAI;
+
+$('eraseBtn').onclick =
+  () => setTool('erase');
+
+$('restoreBtn').onclick =
+  () => setTool('restore');
+
+$('undoBtn').onclick = undo;
+$('redoBtn').onclick = redo;
+
+$('exportBtn').onclick = downloadPng;
+
+
+// ======================================
+// ORIGINAL IMAGE COMPARISON
+// ======================================
+
+$('compareBtn').onclick = () => {
+
+  if (!alphaMask) return;
+
+  showingMask = false;
+
+  $('maskBtn').classList.remove('active');
+
+  showingOriginal = !showingOriginal;
+
+  $('compareBtn').textContent =
+    showingOriginal ? '◉ Edited' : '◉ Original';
+
+  hideBrushCursor();
+
+  render();
+};
+
+
+// ======================================
+// BRUSH SETTINGS
+// ======================================
+
+$('brush').oninput = () => {
+
+  $('brushVal').textContent =
+    $('brush').value+' px';
+
+  updateBrushCursorSize();
+};
+
+$('hardness').oninput = () => {
+
+  $('hardnessVal').textContent =
+    $('hardness').value+'%';
+};
+
+
+// ======================================
+// ZOOM
+// ======================================
+
+$('zoomRange').oninput = () =>
+  updateZoom(Number($('zoomRange').value)/100);
+
+$('zoomIn').onclick =
+  () => updateZoom(zoom*1.2);
+
+$('zoomOut').onclick =
+  () => updateZoom(zoom/1.2);
+
+$('fit').onclick = fitZoom;
+
+
+// ======================================
+// PREVIEW BACKGROUND
+// ======================================
+
+function applyPreviewBg() {
+
+  const v = $('previewBg').value;
+
+  wrap.classList.remove(
+    'white',
+    'dark',
+    'gray',
+    'black',
+    'magenta',
+    'green',
+    'blue'
+  );
+
+  wrap.style.backgroundColor = '';
+  wrap.style.backgroundImage = '';
+
+  // Show custom colour picker only when selected.
+  $('customColorRow').classList.toggle(
+    'hidden',
+    v !== 'custom'
+  );
+
+  if (v === 'custom') {
+
+    wrap.style.backgroundColor =
+      $('customBg').value;
+
+    wrap.style.backgroundImage = 'none';
+
+  } else if (v !== 'check') {
+
+    wrap.classList.add(v);
+
+  } else {
+
+    wrap.style.backgroundColor = '';
+    wrap.style.backgroundImage = '';
+  }
+}
+
+
+// Dropdown selection event.
+$('previewBg').onchange = () => {
+
+  applyPreviewBg();
+
+  if (alphaMask) {
+
+    setStatus(
+      'Preview background changed. It is visible only where the image is transparent; remove the background or erase an area to see it.'
+    );
+  }
+};
+
+
+// Custom colour picker event.
+$('customBg').oninput = () => {
+
+  if ($('previewBg').value !== 'custom') return;
+
+  applyPreviewBg();
+
+  if (alphaMask) {
+
+    setStatus(
+      'Custom preview colour applied behind transparent areas.'
+    );
+  }
+};
+
+
+// Set initial preview.
+applyPreviewBg();
+
+
+// ======================================
+// INSPECT LEFTOVERS
+// ======================================
+
+$('inspectBtn').onclick = () => {
+
+  if (!alphaMask) return;
+
+  inspectionMode = !inspectionMode;
+
+  showingMask = false;
+
+  $('maskBtn').classList.remove('active');
+
+  if (inspectionMode) {
+
+    $('previewBg').value = 'magenta';
+
+    applyPreviewBg();
+
+    $('inspectBtn').classList.add('active');
+
+    setStatus(
+      'Inspection view: magenta makes pale and grey leftover fragments easier to spot. Also switch to black, green or blue to check other edge colours.'
+    );
+
+  } else {
+
+    $('inspectBtn').classList.remove('active');
+
+    setStatus('Inspection view off.');
+  }
+
+  render();
+};
+
+
+// ======================================
+// SHOW MASK
+// ======================================
+
+$('maskBtn').onclick = () => {
+
+  if (!alphaMask) return;
+
+  showingMask = !showingMask;
+
+  showingOriginal = false;
+
+  $('maskBtn').classList.toggle(
+    'active',
+    showingMask
+  );
+
+  $('compareBtn').textContent = '◉ Original';
+
+  hideBrushCursor();
+
+  render();
+
+  setStatus(
+    showingMask
+      ? 'Mask view: white = retained foreground; black = transparent background.'
+      : 'Image preview restored.'
+  );
+};
+
+
+// ======================================
+// BEFORE EXPORT INSPECTION
+// ======================================
+
+$('preExportBtn').onclick = () => {
+
+  if (!alphaMask) return;
+
+  inspectionMode = true;
+
+  showingMask = false;
+
+  $('maskBtn').classList.remove('active');
+
+  $('inspectBtn').classList.add('active');
+
+  $('previewBg').value = 'magenta';
+
+  applyPreviewBg();
+
+  render();
+
+  setStatus(
+    'Before export check: inspect the full outline on magenta, then switch to black/green/blue and zoom in around edges. Use Erase for stray background and Restore for missing subject details.'
+  );
+
+  stage.scrollIntoView({
+    behavior:'smooth',
+    block:'center'
+  });
+};
+
+
+// ======================================
+// RESET MASK
+// ======================================
+
+$('resetBtn').onclick = () => {
+
+  if (!alphaMask || busy) return;
+
+  saveHistory();
+
+  alphaMask.fill(255);
+
+  showingOriginal = false;
+  showingMask = false;
+
+  $('maskBtn').classList.remove('active');
+
+  render();
+
+  setStatus('Mask reset.');
+};
+
+
+// ======================================
+// CLEAR SUBJECT
+// ======================================
+
+$('clearBtn').onclick = () => {
+
+  if (!alphaMask || busy) return;
+
+  saveHistory();
+
+  alphaMask.fill(0);
+
+  showingOriginal = false;
+  showingMask = false;
+
+  $('maskBtn').classList.remove('active');
+
+  render();
+
+  setStatus('Foreground cleared. Use Restore to bring it back.');
+};
+
+
+// ======================================
+// CANVAS POINTER EVENTS
+// ======================================
+
+// Start drawing.
+canvas.addEventListener('pointerdown',e => {
+
+  if (
+    !alphaMask ||
+    busy ||
+    showingOriginal ||
+    showingMask ||
+    !['erase','restore'].includes(tool)
+  ) return;
+
+  canvas.setPointerCapture(e.pointerId);
+
+  saveHistory();
+
+  isDrawing = true;
+
+  lastPoint = canvasPoint(e);
+
+  brushAt(lastPoint);
+
+  showBrushCursor(e);
+
+  render();
+});
+
+
+// Move brush and update circular cursor.
+canvas.addEventListener('pointermove',e => {
+
+  showBrushCursor(e);
+
+  if (!isDrawing || !lastPoint) return;
+
+  const p = canvasPoint(e);
+
+  brushLine(lastPoint,p);
+
+  lastPoint = p;
+
+  render();
+});
+
+
+// Finish drawing.
+function finishStroke() {
+
+  if (isDrawing) {
+
+    isDrawing = false;
+
+    lastPoint = null;
+
+    setStatus(
+      tool==='erase'
+        ? 'Background brushed away.'
+        : 'Subject area restored.'
+    );
+  }
+}
+
+canvas.addEventListener('pointerup',finishStroke);
+canvas.addEventListener('pointercancel',finishStroke);
+canvas.addEventListener('lostpointercapture',finishStroke);
+
+
+// Hide brush when pointer leaves image.
+canvas.addEventListener('pointerleave',() => {
+
+  if (!isDrawing) hideBrushCursor();
+});
+
+
+// ======================================
+// DRAG AND DROP IMAGE
+// ======================================
+
+['dragenter','dragover'].forEach(ev => {
+
+  stage.addEventListener(ev,e => {
+
+    e.preventDefault();
+
+    stage.style.outline =
+      '2px solid var(--accent)';
+  });
+});
+
+['dragleave','drop'].forEach(ev => {
+
+  stage.addEventListener(ev,e => {
+
+    e.preventDefault();
+
+    stage.style.outline = '';
+  });
+});
+
+stage.addEventListener('drop',e => {
+
+  const f = [...(e.dataTransfer?.files||[])]
+    .find(x => /^image\/(jpeg|png|webp)$/.test(x.type));
+
+  if (f) loadImage(f);
+});
+
+
+// ======================================
+// KEYBOARD SHORTCUTS
+// ======================================
+
+document.addEventListener('keydown',e => {
+
+  if (
+    (e.ctrlKey || e.metaKey) &&
+    e.key.toLowerCase()==='z'
+  ) {
+
+    e.preventDefault();
+
+    undo();
+
+  } else if (
+    (e.ctrlKey || e.metaKey) &&
+    e.key.toLowerCase()==='y'
+  ) {
+
+    e.preventDefault();
+
+    redo();
+
+  } else if (e.key==='Escape') {
+
+    finishStroke();
+  }
+});
+
+
+// ======================================
+// WINDOW RESIZE
+// ======================================
+
+window.addEventListener('resize',() => {
+
+  if (w) {
+
+    fitZoom();
+
+    updateBrushCursorSize();
+  }
+});
+
+
+// Initialisation.
+updateHistoryButtons();
+
+})();
+</script>
+
+</body>
+</html>
